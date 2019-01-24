@@ -149,7 +149,7 @@ function create_payload ()
 {
 	mkdir -p "$DISTDIR"/{bin,etc,lib,share} || die "dist subdirs mkdir"
 
-	cp "$LAMBDABIN" "${DISTDIR}/bin/" || die "dist bin cp lambda"
+	cp "$LAMBDABIN" "${DISTDIR}/bin/lambda" || die "dist bin cp lambda"
 
 	cp "${INSTALLDIR}/bin/tesseract" "${DISTDIR}/bin/" || die "dist bin cp tesseract"
 	cp "${INSTALLDIR}/bin/magick" "${DISTDIR}/bin/" || die "dist bin cp magick"
