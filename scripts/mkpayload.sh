@@ -2,6 +2,9 @@
 
 # urls for downloadable tools/dependencies
 
+# FIXME: add libpng, libjpeg, libtiff
+# FIXME: compile cmake and enable openjpeg builds
+
 declare -a SRCURLS=(
 	"https://github.com/tesseract-ocr/tesseract/archive/4.0.0.tar.gz"
 	"https://github.com/DanBloomberg/leptonica/archive/1.77.0.tar.gz"
@@ -176,7 +179,6 @@ function install_dependencies ()
 	install_tesseract
 	#install_openjpeg
 	install_imagemagick
-	ldd "${INSTALLDIR}/bin/magick"
 	install_tessdata
 
 	popd > /dev/null || die "install popd"
@@ -192,5 +194,7 @@ download_languages
 install_dependencies
 
 create_payload
+
+ldd "$DISTDIR"/bin/*
 
 exit 0
