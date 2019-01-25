@@ -212,6 +212,7 @@ function install_cmake_from_source ()
 
 	./configure --prefix="$INSTALLDIR" || die "could not configure cmake"
 	make install || die "could not build or install cmake"
+	cp "$INSTALLDIR"/bin/cmake "$BINDIR"/ || die "could not copy cmake into bin dir"
 
 	popd > /dev/null || die "popd cmake"
 }
@@ -236,6 +237,7 @@ function install_nasm_from_source ()
 	./autogen.sh || die "could not autogen nasm"
 	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure nasm"
 	make install || die "could not build or install nasm"
+	cp "$INSTALLDIR"/bin/nasm "$BINDIR"/ || die "could not copy nasm into bin dir"
 
 	popd > /dev/null || die "popd nasm"
 }
@@ -252,7 +254,7 @@ function install_nasm_from_binary ()
 
 	rpm2cpio "$src" | cpio -idmv || die "nasm cpio"
 
-	cp usr/bin/nasm "$INSTALLDIR"/bin
+	cp usr/bin/nasm "$BINDIR"/
 
 	popd > /dev/null || die "popd nasm"
 }
