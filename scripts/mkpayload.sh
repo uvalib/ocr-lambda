@@ -232,7 +232,7 @@ function install_nasm_from_binary ()
 	mkdir "nasm" || die "could not create nasm subdir"
 	pushd "nasm" || die "pushd nasm"
 
-	rpm2cpio ../"$src" | cpio -idmv || die "nasm cpio"
+	rpm2cpio "$src" | cpio -idmv || die "nasm cpio"
 
 	cp usr/bin/nasm "$INSTALLDIR"/bin
 
