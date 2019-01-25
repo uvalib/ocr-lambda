@@ -2,18 +2,19 @@
 
 # urls for downloadable tools/dependencies
 
-# FIXME: add libpng, libjpeg, libtiff
-# FIXME: compile cmake and enable openjpeg builds
-
 declare -a SRCURLS=(
 	"https://github.com/tesseract-ocr/tesseract/archive/4.0.0.tar.gz"
 	"https://github.com/DanBloomberg/leptonica/archive/1.77.0.tar.gz"
 	"https://github.com/ImageMagick/ImageMagick/archive/7.0.8-24.tar.gz"
 	"https://github.com/uclouvain/openjpeg/archive/v2.3.0.tar.gz"
-	"https://github.com/Kitware/CMake/archive/v3.13.3.tar.gz"
+	"https://github.com/libjpeg-turbo/libjpeg-turbo/archive/2.0.1.tar.gz"
+	"https://download.osgeo.org/libtiff/tiff-4.0.10.tar.gz"
+	"https://download.sourceforge.net/libpng/libpng-1.6.36.tar.gz"
+	"https://github.com/Kitware/CMake/releases/download/v3.13.3/cmake-3.13.3-Linux-x86_64.tar.gz"
+	"https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/linux/nasm-2.14.02-0.fc27.x86_64.rpm"
 )
 
-# urls for language files
+# urls for tesseract language files
 
 LANGS="eng osd fra spa ara deu rus ell grc"
 LANGFMT="https://github.com/tesseract-ocr/tessdata_best/raw/master/%s.traineddata"
@@ -37,19 +38,31 @@ ZIPDIR="${BASEDIR}/zip"
 LAMBDABIN="${THISDIR}/bin/ocr-lambda"
 LAMBDAZIP="${ZIPDIR}/lambda.zip"
 
+# misc
+
+SCRIPTNAME="$(basename $0)"
+
 # functions
 
 function die ()
 {
-	echo "error: $@"
+	msg "ERROR: $@"
 	exit 1
+}
+
+function msg ()
+{
+	echo "${SCRIPTNAME}: $@"
 }
 
 function initialize_environment ()
 {
+	msg "[$FUNCNAME]"
+
 	rm -rf "$BASEDIR" || die "init rm"
 
 	mkdir -p "$BINDIR" "$SRCDIR" "$LANGDIR" "$BUILDDIR" "$INSTALLDIR" "$DISTDIR" "$ZIPDIR" || die "init mkdir"
+	mkdir -p "$INSTALLDIR"/bin || die "init mkdir install subdirs"
 
 	export PATH="${PATH}:${BINDIR}"
 	export PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:${INSTALLDIR}/lib/pkgconfig"
@@ -57,99 +70,199 @@ function initialize_environment ()
 
 function download_dependencies ()
 {
+	msg "[$FUNCNAME]"
+
 	pushd "$SRCDIR" > /dev/null || die "src pushd"
 
 	for url in ${SRCURLS[@]}; do
+		msg "downloading: [$url]"
 		curl -sSLOJ "$url" || die "src curl"
 	done
-
-	ls -laF
 
 	popd > /dev/null
 }
 
 function download_languages ()
 {
+	msg "[$FUNCNAME]"
+
 	pushd "$LANGDIR" > /dev/null || die "lang pushd"
 
 	for url in ${LANGURLS[@]}; do
+		msg "downloading: [$url]"
 		curl -sSLOJ "$url" || die "lang curl"
 	done
-
-	ls -laF
 
 	popd > /dev/null
 }
 
-function install_leptonica ()
+function extract_and_enter ()
 {
-	LEPTTGZ="$(echo "$SRCDIR"/leptonica-*gz)"
-	[ -f "$LEPTTGZ" ] || die "cannot work with this: [$LEPTTGZ]"
-	LEPTDIR="$(gunzip < "$LEPTTGZ" | tar tf - | grep "^[^/]*/configure.ac$" | cut -d/ -f1)"
-	rm -rf "$LEPTDIR" || die "remove existing leptonica build dir"
-	gunzip < "$LEPTTGZ" | tar xf -
-	pushd "$LEPTDIR" > /dev/null || die "could not change to directory: [$LEPTDIR]"
+	local srcpfx
+	local dirpat
+	local src
+	local dir
+
+	srcpfx="$1"
+	dirpat="$2"
+
+	src="$(echo "$SRCDIR/$srcpfx"-*)"
+	[ -f "$src" ] || die "not a source file: [$src]"
+
+	dir="$(tar tzf "$src" | grep "$dirpat" | cut -d/ -f1)"
+	rm -rf "$dir" || die "could not remove directory: [$dir]"
+
+	tar xzf "$src" || die "could not extract source file: [$src]"
+
+	pushd "$dir" > /dev/null || die "could not change to directory: [$dir]"
+}
+
+function install_leptonica_from_source ()
+{
+	msg "[$FUNCNAME]"
+
+	extract_and_enter "leptonica" "^[^/]*/configure.ac$"
+
 	./autogen.sh || die "could not autogen leptonica"
 	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure leptonica"
 	make install-strip || die "could not build or install leptonica"
+
 	popd > /dev/null || die "popd leptonica"
 }
 
-function install_tesseract ()
+function install_tesseract_from_source ()
 {
-	TESSTGZ="$(echo "$SRCDIR"/tesseract-*.gz)"
-	[ -f "$TESSTGZ" ] || die "cannot work with this: [$TESSTGZ]"
-	TESSDIR="$(gunzip < "$TESSTGZ" | tar tf - | grep "^[^/]*/configure.ac$" | cut -d/ -f1)"
-	rm -rf "$TESSDIR" || die "remove existing tesseract build dir"
-	gunzip < "$TESSTGZ" | tar xf -
-	pushd "$TESSDIR" > /dev/null || die "could not change to directory: [$TESSDIR]"
+	msg "[$FUNCNAME]"
+
+	extract_and_enter "tesseract" "^[^/]*/configure.ac$"
+
 	./autogen.sh || die "could not autogen tesseract"
 	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking --disable-graphics --disable-legacy || die "could not configure tesseract"
 	make install-strip || die "could not build or install tesseract"
+
+	TESSDATA="${INSTALLDIR}/share/tessdata"
+	mv "$LANGDIR"/* "$TESSDATA"/ || die "lang mv"
+
 	popd > /dev/null || die "popd tesseract"
 }
 
-function install_imagemagick ()
+function install_imagemagick_from_source ()
 {
-	IMGKTGZ="$(echo "$SRCDIR"/ImageMagick-*.gz)"
-	[ -f "$IMGKTGZ" ] || die "cannot work with this: [$IMGKTGZ]"
-	IMGKDIR="$(gunzip < "$IMGKTGZ" | tar tf - | grep "^[^/]*/configure.ac$" | cut -d/ -f1)"
-	rm -rf "$IMGKDIR" || die "remove existing imagemagick build dir"
-	gunzip < "$IMGKTGZ" | tar xf -
-	pushd "$IMGKDIR" > /dev/null || die "could not change to directory: [$IMGKDIR]"
+	msg "[$FUNCNAME]"
+
+	extract_and_enter "ImageMagick" "^[^/]*/configure.ac$"
+
 	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure imagemagick"
 	make install-strip || die "could not build or install imagemagick"
+
 	popd > /dev/null || die "popd imagemagick"
 }
 
-function install_openjpeg ()
+function install_libjpeg_from_source ()
 {
-	OJTGZ="$(echo "$SRCDIR"/openjpeg-*.gz)"
-	[ -f "$OJTGZ" ] || die "cannot work with this: [$OJTGZ]"
-	OJDIR="$(gunzip < "$OJTGZ" | tar tf - | grep "^[^/]*/CMakeLists.txt$" | cut -d/ -f1)"
-	rm -rf "$OJDIR" || die "remove existing openjpeg build dir"
-	gunzip < "$OJTGZ" | tar xf -
-	pushd "$OJDIR" > /dev/null || die "could not change to directory: [$OJDIR]"
-	mkdir "build" || die "mkdir"
-	pushd "build" || die "pushd"
-	cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALLDIR"
-	make install || die "could not build or install openjpeg"
-	popd > /dev/null || die "popd build"
-	popd > /dev/null || die "popd openjpeg"
+	msg "[$FUNCNAME]"
+
+	extract_and_enter "libjpeg-turbo" "^[^/]*/CMakeLists.txt$"
+
+	mkdir "build" || die "could not create build subdir"
+	pushd "build" || die "pushd libjpeg build"
+
+	cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALLDIR" || die "could not cmake libjpeg"
+	make install || die "could not build or install libjpeg"
+
+	popd > /dev/null || die "popd libjpeg build"
+
+	popd > /dev/null || die "popd libjpeg"
 }
 
-function install_tessdata ()
+function install_libtiff_from_source ()
 {
-	TESSDATA="${INSTALLDIR}/share/tessdata"
+	msg "[$FUNCNAME]"
 
-	mv "$LANGDIR"/* "$TESSDATA"/ || die "lang mv"
+	extract_and_enter "tiff" "^[^/]*/configure.ac$"
+
+	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure libtiff"
+	make install-strip || die "could not build or install libtiff"
+
+	popd > /dev/null || die "popd libtiff"
+}
+
+function install_libpng_from_source ()
+{
+	msg "[$FUNCNAME]"
+
+	extract_and_enter "libpng" "^[^/]*/configure.ac$"
+
+	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure libpng"
+	make install-strip || die "could not build or install libpng"
+
+	popd > /dev/null || die "popd libpng"
+}
+
+function install_cmake_from_source ()
+{
+	msg "[$FUNCNAME]"
+
+	extract_and_enter "CMake" "^[^/]*/bootstrap$"
+
+	./configure --prefix="$INSTALLDIR" || die "could not configure cmake"
+	make install || die "could not build or install cmake"
+
+	popd > /dev/null || die "popd cmake"
+}
+
+function install_cmake_from_binary ()
+{
+	msg "[$FUNCNAME]"
+
+	extract_and_enter "cmake" "^[^/]*/bin/cmake$"
+
+	cp bin/cmake "$INSTALLDIR"/bin
+
+	popd > /dev/null || die "popd cmake"
+}
+
+function install_nasm_from_binary ()
+{
+	msg "[$FUNCNAME]"
+
+	src="$(echo "$SRCDIR"/nasm-*)"
+	[ -f "$src" ] || die "not a source file: [$src]"
+
+	mkdir "nasm" || die "could not create nasm subdir"
+	pushd "nasm" || die "pushd nasm"
+
+	rpm2cpio ../"$src" | cpio -idmv || die "nasm cpio"
+
+	cp usr/bin/nasm "$INSTALLDIR"/bin
+
+	popd > /dev/null || die "popd nasm"
+}
+
+function install_openjpeg_from_source ()
+{
+	msg "[$FUNCNAME]"
+
+	extract_and_enter "openjpeg" "^[^/]*/CMakeLists.txt$"
+
+	mkdir "build" || die "could not create build subdir"
+	pushd "build" || die "pushd openjpeg build"
+
+	cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALLDIR" || die "could not cmake openjpeg"
+	make install || die "could not build or install openjpeg"
+
+	popd > /dev/null || die "popd openjpeg build"
+
+	popd > /dev/null || die "popd openjpeg"
 }
 
 function create_payload ()
 {
+	msg "[$FUNCNAME]"
+
 	mkdir -p "$DISTDIR"/{bin,etc,lib,share} || die "dist subdirs mkdir"
 
-	cp "$LAMBDABIN" "${DISTDIR}/lambda" || die "dist bin cp lambda"
+	cp "$LAMBDABIN" "$DISTDIR"/ || die "dist bin cp lambda"
 
 	cp "${INSTALLDIR}/bin/tesseract" "${DISTDIR}/bin/" || die "dist bin cp tesseract"
 	cp "${INSTALLDIR}/bin/magick" "${DISTDIR}/bin/" || die "dist bin cp magick"
@@ -171,15 +284,118 @@ function create_payload ()
 	popd > /dev/null || die "popd zip"
 }
 
+function install_cmake ()
+{
+	msg "[$FUNCNAME]"
+
+	# if it already exists, no need to install
+	type -p cmake > /dev/null 2>&1 && return
+
+	# install dependencies first
+
+	# now install
+	install_cmake_from_binary
+}
+
+function install_nasm ()
+{
+	msg "[$FUNCNAME]"
+
+	# if it already exists, no need to install
+	type -p nasm > /dev/null 2>&1 && return
+
+	# install dependencies first
+
+	# now install
+	install_nasm_from_binary
+}
+
+function install_libjpeg ()
+{
+	msg "[$FUNCNAME]"
+
+	# install dependencies first
+	install_cmake
+	install_nasm
+
+	# now install
+	install_libjpeg_from_source
+}
+
+function install_libtiff ()
+{
+	msg "[$FUNCNAME]"
+
+	# install dependencies first
+
+	# now install
+	install_libtiff_from_source
+}
+
+function install_openjpeg ()
+{
+	msg "[$FUNCNAME]"
+
+	# install dependencies first
+	install_cmake
+
+	# now install
+	install_openjpeg_from_source
+}
+
+function install_libpng ()
+{
+	msg "[$FUNCNAME]"
+
+	# install dependencies first
+
+	# now install
+	install_libpng_from_source
+}
+
+function install_imagemagick ()
+{
+	msg "[$FUNCNAME]"
+
+	# install dependencies first
+	install_libjpeg
+	install_libtiff
+	install_libpng
+	install_openjpeg
+
+	# now install
+	install_imagemagick_from_source
+}
+
+function install_leptonica ()
+{
+	msg "[$FUNCNAME]"
+
+	# install dependencies first
+
+	# now install
+	install_leptonica_from_source
+}
+
+function install_tesseract ()
+{
+	msg "[$FUNCNAME]"
+
+	# install dependencies first
+	install_leptonica
+
+	# now install
+	install_tesseract_from_source
+}
+
 function install_dependencies ()
 {
+	msg "[$FUNCNAME]"
+
 	pushd "$BUILDDIR" > /dev/null || die "install pushd"
 
-	install_leptonica
 	install_tesseract
-	#install_openjpeg
 	install_imagemagick
-	install_tessdata
 
 	popd > /dev/null || die "install popd"
 }
@@ -194,7 +410,5 @@ download_languages
 install_dependencies
 
 create_payload
-
-ldd "$DISTDIR"/bin/*
 
 exit 0
