@@ -60,7 +60,12 @@ function msg ()
 function initialize_environment ()
 {
 	export PATH="${PATH}:${BINDIR}"
-	export PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:${INSTALLDIR}/lib/pkgconfig"
+	export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${INSTALLDIR}/lib64:${INSTALLDIR}/lib"
+	export PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:${INSTALLDIR}/lib64/pkgconfig:${INSTALLDIR}/lib/pkgconfig"
+	export CFLAGS="${CFLAGS} -I${INSTALLDIR}/include"
+	export CXXFLAGS="${CXXFLAGS} -I${INSTALLDIR}/include"
+	export CPPFLAGS="${CPPFLAGS} -I${INSTALLDIR}/include"
+	export LDFLAGS="${LDFLAGS} -L${INSTALLDIR}/lib64 -L${INSTALLDIR}/lib"
 }
 
 function clean_directories ()
@@ -111,6 +116,8 @@ function extract_and_enter ()
 	srcpfx="$1"
 	dirpat="$2"
 
+	cd "$BUILDDIR" || die "could not cd to build dir"
+
 	src="$(echo "$SRCDIR/$srcpfx"-*)"
 	[ -f "$src" ] || die "not a source file: [$src]"
 
@@ -130,7 +137,8 @@ function install_leptonica_from_source ()
 
 	./autogen.sh || die "could not autogen leptonica"
 	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure leptonica"
-	make install-strip || die "could not build or install leptonica"
+#	make install-strip || die "could not build or install leptonica"
+	make install || die "could not build or install leptonica"
 
 	popd > /dev/null || die "popd leptonica"
 }
@@ -143,7 +151,8 @@ function install_tesseract_from_source ()
 
 	./autogen.sh || die "could not autogen tesseract"
 	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking --disable-graphics --disable-legacy || die "could not configure tesseract"
-	make install-strip || die "could not build or install tesseract"
+#	make install-strip || die "could not build or install tesseract"
+	make install || die "could not build or install tesseract"
 
 	TESSDATA="${INSTALLDIR}/share/tessdata"
 	mv "$LANGDIR"/* "$TESSDATA"/ || die "lang mv"
@@ -158,7 +167,8 @@ function install_imagemagick_from_source ()
 	extract_and_enter "ImageMagick" "^[^/]*/configure.ac$"
 
 	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure imagemagick"
-	make install-strip || die "could not build or install imagemagick"
+#	make install-strip || die "could not build or install imagemagick"
+	make install || die "could not build or install imagemagick"
 
 	popd > /dev/null || die "popd imagemagick"
 }
@@ -187,7 +197,8 @@ function install_libtiff_from_source ()
 	extract_and_enter "tiff" "^[^/]*/configure.ac$"
 
 	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure libtiff"
-	make install-strip || die "could not build or install libtiff"
+#	make install-strip || die "could not build or install libtiff"
+	make install || die "could not build or install libtiff"
 
 	popd > /dev/null || die "popd libtiff"
 }
@@ -199,7 +210,8 @@ function install_libpng_from_source ()
 	extract_and_enter "libpng" "^[^/]*/configure.ac$"
 
 	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure libpng"
-	make install-strip || die "could not build or install libpng"
+#	make install-strip || die "could not build or install libpng"
+	make install || die "could not build or install libpng"
 
 	popd > /dev/null || die "popd libpng"
 }
@@ -280,6 +292,7 @@ function create_payload ()
 {
 	msg "[$FUNCNAME]"
 
+	rm -rf "$DISTDIR"/ "$LAMBDAZIP" || die "dist rm"
 	mkdir -p "$DISTDIR"/{bin,etc,lib,share} || die "dist subdirs mkdir"
 
 	cp "$LAMBDABIN" "$DISTDIR"/ || die "dist bin cp lambda"
@@ -292,9 +305,18 @@ function create_payload ()
 
 	while read line; do
 		lib="$(echo "$line" | awk '{print $1}')"
-		res="$(echo "$line" | awk '{print $3}')"
+		res="$(echo "$line" | awk '{print $2}')"
 		cp "$res" "$DISTDIR"/lib/ || die "dist lib cp: [$lib]"
-	done < <(ldd "$DISTDIR"/bin/* | egrep "/lib(jbig|jpeg|lept|openjp2|png|tesseract|tiff|Magick)")
+	done < <(ldd "$DISTDIR"/bin/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u | egrep "/lib(jbig|jpeg|lept|openjp2|png|tesseract|tiff|Magick)")
+#	done < <(ldd "$DISTDIR"/bin/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u)
+
+	echo "[libs]"
+	libs="$(ldd "$DISTDIR"/{bin,lib}/*)"
+	echo "$libs"
+
+	echo "[libs] unique"
+	libs="$(echo "$libs" | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u)"
+	echo "$libs"
 
 	find "$DISTDIR" \( \( -type d \) -o \( -type f -a -perm /a+x \) \) -print0 | xargs -0r chmod 755
 	find "$DISTDIR" -type f -a \! -perm /a+x -print0 | xargs -0r chmod 644
@@ -378,10 +400,6 @@ function install_imagemagick ()
 	msg "[$FUNCNAME]"
 
 	# install dependencies first
-	install_libjpeg
-	install_libtiff
-	install_libpng
-	install_openjpeg
 
 	# now install
 	install_imagemagick_from_source
@@ -392,6 +410,10 @@ function install_leptonica ()
 	msg "[$FUNCNAME]"
 
 	# install dependencies first
+	install_libjpeg
+	install_libtiff
+	install_libpng
+	install_openjpeg
 
 	# now install
 	install_leptonica_from_source
