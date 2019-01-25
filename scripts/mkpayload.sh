@@ -23,7 +23,7 @@ declare -a LANGURLS=($(for lang in $LANGS; do printf "${LANGFMT}\n" "$lang"; don
 # directories
 
 THISDIR="$(pwd -P)"
-BASEDIR="${THISDIR}/base"
+BASEDIR="${THISDIR}/payload"
 
 BINDIR="${BASEDIR}/bin"
 SRCDIR="${BASEDIR}/src"
@@ -57,15 +57,18 @@ function msg ()
 
 function initialize_environment ()
 {
-	msg "[$FUNCNAME]"
-
-	rm -rf "$BASEDIR" || die "init rm"
-
 	mkdir -p "$BINDIR" "$SRCDIR" "$LANGDIR" "$BUILDDIR" "$INSTALLDIR" "$DISTDIR" "$ZIPDIR" || die "init mkdir"
 	mkdir -p "$INSTALLDIR"/bin || die "init mkdir install subdirs"
 
 	export PATH="${PATH}:${BINDIR}"
 	export PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:${INSTALLDIR}/lib/pkgconfig"
+}
+
+function clean_directories ()
+{
+	msg "[$FUNCNAME]"
+
+	rm -rf "$BASEDIR" || die "init rm"
 }
 
 function download_dependencies ()
@@ -404,11 +407,39 @@ function install_dependencies ()
 
 initialize_environment
 
-download_dependencies
-download_languages
+case $1 in
+	-d )
+		# just download files
+		download_dependencies
+		download_languages
+		;;
 
-install_dependencies
+	-f )
+		# everything from scratch
+		clean_directories
 
-create_payload
+		download_dependencies
+		download_languages
+
+		install_dependencies
+
+		create_payload
+		;;
+
+	-i )
+		# just install software
+		install_dependencies
+		;;
+
+	-z )
+		# just create the payload
+		create_payload
+		;;
+
+	* )
+		msg "usage: $0 [ -d | -f | -i | -z ]"
+		exit 1
+		;;
+esac
 
 exit 0
