@@ -2,6 +2,9 @@
 
 # urls for downloadable tools/dependencies
 
+#	"https://github.com/Kitware/CMake/releases/download/v3.13.3/cmake-3.13.3-Linux-x86_64.tar.gz"
+#	"https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/linux/nasm-2.14.02-0.fc27.x86_64.rpm"
+
 declare -a SRCURLS=(
 	"https://github.com/tesseract-ocr/tesseract/archive/4.0.0.tar.gz"
 	"https://github.com/DanBloomberg/leptonica/archive/1.77.0.tar.gz"
@@ -10,8 +13,7 @@ declare -a SRCURLS=(
 	"https://github.com/libjpeg-turbo/libjpeg-turbo/archive/2.0.1.tar.gz"
 	"https://download.osgeo.org/libtiff/tiff-4.0.10.tar.gz"
 	"https://download.sourceforge.net/libpng/libpng-1.6.36.tar.gz"
-	"https://github.com/Kitware/CMake/releases/download/v3.13.3/cmake-3.13.3-Linux-x86_64.tar.gz"
-	"https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/linux/nasm-2.14.02-0.fc27.x86_64.rpm"
+	"https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/nasm-2.14.02.tar.gz"
 )
 
 # urls for tesseract language files
@@ -225,6 +227,19 @@ function install_cmake_from_binary ()
 	popd > /dev/null || die "popd cmake"
 }
 
+function install_nasm_from_source ()
+{
+	msg "[$FUNCNAME]"
+
+	extract_and_enter "nasm" "^[^/]*/configure.ac$"
+
+	./autogen.sh || die "could not autogen nasm"
+	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure nasm"
+	make install || die "could not build or install nasm"
+
+	popd > /dev/null || die "popd nasm"
+}
+
 function install_nasm_from_binary ()
 {
 	msg "[$FUNCNAME]"
@@ -310,7 +325,7 @@ function install_nasm ()
 	# install dependencies first
 
 	# now install
-	install_nasm_from_binary
+	install_nasm_from_source
 }
 
 function install_libjpeg ()
@@ -318,7 +333,7 @@ function install_libjpeg ()
 	msg "[$FUNCNAME]"
 
 	# install dependencies first
-	install_cmake
+	#install_cmake
 	install_nasm
 
 	# now install
@@ -429,6 +444,11 @@ case $1 in
 	-i )
 		# just install software
 		install_dependencies
+		;;
+
+	-x )
+		# execute the specified function
+		$2
 		;;
 
 	-z )
