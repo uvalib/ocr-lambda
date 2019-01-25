@@ -1,6 +1,7 @@
 # project specific definitions
 SRCDIR = cmd
 BINDIR = bin
+PAYDIR = payload
 PKGLAMBDA = ocr-lambda
 PACKAGES = $(PKGLAMBDA)
 
@@ -83,7 +84,7 @@ lambda: lambda-vars linux
 rebuild-lambda: lambda-vars rebuild-linux
 
 payload: lambda
-	@bash scripts/mkpayload.sh
+	@bash scripts/mkpayload.sh -f
 
 # maintenance rules
 fmt:
@@ -102,8 +103,8 @@ vet:
 
 clean:
 	@ \
-	echo "purge: $(BINDIR)/" ; \
-	rm -rf $(BINDIR) ; \
+	echo "purge: $(BINDIR)/ $(PAYDIR)/" ; \
+	rm -rf $(BINDIR) $(PAYDIR) ; \
 	for pkg in $(PACKAGES) ; do \
 		echo "clean: $${pkg}" ; \
 		(cd "$(SRCDIR)/$${pkg}" && $(GOCLN)) ; \
