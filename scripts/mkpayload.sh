@@ -59,9 +59,6 @@ function msg ()
 
 function initialize_environment ()
 {
-	mkdir -p "$BINDIR" "$SRCDIR" "$LANGDIR" "$BUILDDIR" "$INSTALLDIR" "$DISTDIR" "$ZIPDIR" || die "init mkdir"
-	mkdir -p "$INSTALLDIR"/bin || die "init mkdir install subdirs"
-
 	export PATH="${PATH}:${BINDIR}"
 	export PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:${INSTALLDIR}/lib/pkgconfig"
 }
@@ -71,6 +68,9 @@ function clean_directories ()
 	msg "[$FUNCNAME]"
 
 	rm -rf "$BASEDIR" || die "init rm"
+
+	mkdir -p "$BINDIR" "$SRCDIR" "$LANGDIR" "$BUILDDIR" "$INSTALLDIR" "$DISTDIR" "$ZIPDIR" || die "init mkdir"
+	mkdir -p "$INSTALLDIR"/bin || die "init mkdir install subdirs"
 }
 
 function download_dependencies ()
