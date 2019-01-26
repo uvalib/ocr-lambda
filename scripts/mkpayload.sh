@@ -2,9 +2,6 @@
 
 # urls for downloadable tools/dependencies
 
-#	"https://github.com/Kitware/CMake/releases/download/v3.13.3/cmake-3.13.3-Linux-x86_64.tar.gz"
-#	"https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/linux/nasm-2.14.02-0.fc27.x86_64.rpm"
-
 declare -a SRCURLS=(
 	"https://github.com/tesseract-ocr/tesseract/archive/4.0.0.tar.gz"
 	"https://github.com/DanBloomberg/leptonica/archive/1.77.0.tar.gz"
@@ -13,6 +10,7 @@ declare -a SRCURLS=(
 	"https://github.com/libjpeg-turbo/libjpeg-turbo/archive/2.0.1.tar.gz"
 	"https://download.osgeo.org/libtiff/tiff-4.0.10.tar.gz"
 	"https://download.sourceforge.net/libpng/libpng-1.6.36.tar.gz"
+	"https://github.com/Kitware/CMake/releases/download/v3.13.3/cmake-3.13.3-Linux-x86_64.tar.gz"
 	"https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/nasm-2.14.02.tar.gz"
 )
 
@@ -137,7 +135,6 @@ function install_leptonica_from_source ()
 
 	./autogen.sh || die "could not autogen leptonica"
 	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure leptonica"
-#	make install-strip || die "could not build or install leptonica"
 	make install || die "could not build or install leptonica"
 
 	popd > /dev/null || die "popd leptonica"
@@ -151,7 +148,6 @@ function install_tesseract_from_source ()
 
 	./autogen.sh || die "could not autogen tesseract"
 	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking --disable-graphics --disable-legacy || die "could not configure tesseract"
-#	make install-strip || die "could not build or install tesseract"
 	make install || die "could not build or install tesseract"
 
 	TESSDATA="${INSTALLDIR}/share/tessdata"
@@ -167,7 +163,6 @@ function install_imagemagick_from_source ()
 	extract_and_enter "ImageMagick" "^[^/]*/configure.ac$"
 
 	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure imagemagick"
-#	make install-strip || die "could not build or install imagemagick"
 	make install || die "could not build or install imagemagick"
 
 	popd > /dev/null || die "popd imagemagick"
@@ -197,7 +192,6 @@ function install_libtiff_from_source ()
 	extract_and_enter "tiff" "^[^/]*/configure.ac$"
 
 	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure libtiff"
-#	make install-strip || die "could not build or install libtiff"
 	make install || die "could not build or install libtiff"
 
 	popd > /dev/null || die "popd libtiff"
@@ -210,7 +204,6 @@ function install_libpng_from_source ()
 	extract_and_enter "libpng" "^[^/]*/configure.ac$"
 
 	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure libpng"
-#	make install-strip || die "could not build or install libpng"
 	make install || die "could not build or install libpng"
 
 	popd > /dev/null || die "popd libpng"
@@ -357,7 +350,7 @@ function install_libjpeg ()
 	msg "[$FUNCNAME]"
 
 	# install dependencies first
-	#install_cmake
+	install_cmake
 	install_nasm
 
 	# now install
