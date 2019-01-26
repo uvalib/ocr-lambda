@@ -228,7 +228,7 @@ function install_cmake_from_binary ()
 
 	extract_and_enter "cmake" "^[^/]*/bin/cmake$"
 
-	cp bin/cmake "$INSTALLDIR"/bin
+	cp bin/cmake "$BINDIR"/
 
 	popd > /dev/null || die "popd cmake"
 }
