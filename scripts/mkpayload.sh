@@ -338,7 +338,8 @@ function install_cmake ()
 	msg "[$FUNCNAME]"
 
 	# if it already exists, no need to install
-	command_exists "cmake" && return
+#	command_exists "cmake" && return
+	command_exists "cmake"
 
 	# install dependencies first
 
@@ -351,7 +352,8 @@ function install_nasm ()
 	msg "[$FUNCNAME]"
 
 	# if it already exists, no need to install
-	command_exists "nasm" && return
+#	command_exists "nasm" && return
+	command_exists "nasm"
 
 	# install dependencies first
 
