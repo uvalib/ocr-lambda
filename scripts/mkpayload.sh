@@ -104,6 +104,22 @@ function download_languages ()
 	popd > /dev/null
 }
 
+function command_exists ()
+{
+	local cmd
+
+	cmd="$1"
+
+	if type -p "$cmd" > /dev/null 2>&1; then
+		msg "found $cmd; skipping local build"
+		return 0
+	fi
+
+	msg "missing $cmd; building local version"
+
+	return 1
+}
+
 function extract_and_enter ()
 {
 	local srcpfx
@@ -322,7 +338,7 @@ function install_cmake ()
 	msg "[$FUNCNAME]"
 
 	# if it already exists, no need to install
-	type -p cmake > /dev/null 2>&1 && return
+	command_exists "cmake" && return
 
 	# install dependencies first
 
@@ -335,7 +351,7 @@ function install_nasm ()
 	msg "[$FUNCNAME]"
 
 	# if it already exists, no need to install
-	type -p nasm > /dev/null 2>&1 && return
+	command_exists "nasm" && return
 
 	# install dependencies first
 
@@ -463,7 +479,8 @@ case $1 in
 
 	-x )
 		# execute the specified function
-		$2
+		shift
+		$@
 		;;
 
 	-z )
