@@ -10,8 +10,8 @@ declare -a SRCURLS=(
 	"https://github.com/libjpeg-turbo/libjpeg-turbo/archive/2.0.1.tar.gz"
 	"https://download.osgeo.org/libtiff/tiff-4.0.10.tar.gz"
 	"https://download.sourceforge.net/libpng/libpng-1.6.36.tar.gz"
-	"https://github.com/Kitware/CMake/releases/download/v3.13.3/cmake-3.13.3-Linux-x86_64.tar.gz"
 	"https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/nasm-2.14.02.tar.gz"
+	"https://github.com/Kitware/CMake/archive/v3.13.3.tar.gz"
 )
 
 # urls for tesseract language files
@@ -57,7 +57,7 @@ function msg ()
 
 function initialize_environment ()
 {
-	export PATH="${PATH}:${BINDIR}"
+	export PATH="${PATH}:${BINDIR}:${INSTALLDIR}/bin"
 	export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${INSTALLDIR}/lib64:${INSTALLDIR}/lib"
 	export PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:${INSTALLDIR}/lib64/pkgconfig:${INSTALLDIR}/lib/pkgconfig"
 	export CFLAGS="${CFLAGS} -I${INSTALLDIR}/include"
@@ -215,9 +215,8 @@ function install_cmake_from_source ()
 
 	extract_and_enter "CMake" "^[^/]*/bootstrap$"
 
-	./configure --prefix="$INSTALLDIR" || die "could not configure cmake"
+	./bootstrap --prefix="$INSTALLDIR" || die "could not configure cmake"
 	make install || die "could not build or install cmake"
-	cp "$INSTALLDIR"/bin/cmake "$BINDIR"/ || die "could not copy cmake into bin dir"
 
 	popd > /dev/null || die "popd cmake"
 }
@@ -242,7 +241,6 @@ function install_nasm_from_source ()
 	./autogen.sh || die "could not autogen nasm"
 	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure nasm"
 	make install || die "could not build or install nasm"
-	cp "$INSTALLDIR"/bin/nasm "$BINDIR"/ || die "could not copy nasm into bin dir"
 
 	popd > /dev/null || die "popd nasm"
 }
@@ -329,7 +327,7 @@ function install_cmake ()
 	# install dependencies first
 
 	# now install
-	install_cmake_from_binary
+	install_cmake_from_source
 }
 
 function install_nasm ()
@@ -372,7 +370,7 @@ function install_openjpeg ()
 	msg "[$FUNCNAME]"
 
 	# install dependencies first
-	install_cmake
+	#install_cmake
 
 	# now install
 	install_openjpeg_from_source
