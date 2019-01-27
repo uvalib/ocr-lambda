@@ -43,7 +43,7 @@ LAMBDAZIP="${ZIPDIR}/lambda.zip"
 
 SCRIPTNAME="$(basename $0)"
 
-declare -a INSTALLED
+declare -A INSTALLED
 
 # functions
 
