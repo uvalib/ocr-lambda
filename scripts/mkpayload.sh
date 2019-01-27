@@ -109,9 +109,7 @@ function download_languages ()
 
 function command_exists ()
 {
-	local cmd
-
-	cmd="$1"
+	local cmd="$1"
 
 	if type -p "$cmd" > /dev/null 2>&1; then
 		msg "found $cmd; skipping local build"
@@ -125,13 +123,10 @@ function command_exists ()
 
 function extract_and_enter ()
 {
-	local srcpfx
-	local dirpat
+	local srcpfx="$1"
+	local dirpat="$2"
 	local src
 	local dir
-
-	srcpfx="$1"
-	dirpat="$2"
 
 	cd "$BUILDDIR" || die "could not cd to build dir"
 
@@ -350,11 +345,11 @@ function create_payload ()
 
 function package_already_installed ()
 {
-	pkg="$1"
+	local pkg="$1"
 
 	[ "$pkg" = "" ] && return 1
 
-	if [ "${INSTALLED[$pkg]}" = "y" ]; then
+	if [ "${INSTALLED["$pkg"]}" = "y" ]; then
 		msg "$pkg was already installed; skipping"
 		return 0
 	fi
@@ -364,16 +359,20 @@ function package_already_installed ()
 
 function package_mark_installed ()
 {
-	[ "$pkg" != "" ] && INSTALLED[$pkg]="y"
+	local pkg="$1"
 
-	pkg=""
+	[ "$pkg" = "" ] && return
+
+	INSTALLED["$pkg"]="y"
 }
 
 function install_cmake ()
 {
 	msg "[$FUNCNAME]"
 
-	package_already_installed "cmake" && return
+	local pkg="cmake"
+
+	package_already_installed "$pkg" && return
 
 	# just log whether it exists and build anyway
 #	command_exists "cmake" && return
@@ -383,14 +382,17 @@ function install_cmake ()
 
 	# now install
 	install_cmake_from_source
-	package_mark_installed
+
+	package_mark_installed "$pkg"
 }
 
 function install_nasm ()
 {
 	msg "[$FUNCNAME]"
 
-	package_already_installed "nasm" && return
+	local pkg="nasm"
+
+	package_already_installed "$pkg" && return
 
 	# just log whether it exists and build anyway
 #	command_exists "nasm" && return
@@ -400,14 +402,17 @@ function install_nasm ()
 
 	# now install
 	install_nasm_from_source
-	package_mark_installed
+
+	package_mark_installed "$pkg"
 }
 
 function install_libjpeg ()
 {
 	msg "[$FUNCNAME]"
 
-	package_already_installed "libjpeg" && return
+	local pkg="libjpeg"
+
+	package_already_installed "$pkg" && return
 
 	# install dependencies first
 	install_cmake
@@ -415,80 +420,98 @@ function install_libjpeg ()
 
 	# now install
 	install_libjpeg_from_source
-	package_mark_installed
+
+	package_mark_installed "$pkg"
 }
 
 function install_libtiff ()
 {
 	msg "[$FUNCNAME]"
 
-	package_already_installed "libtiff" && return
+	local pkg="libtiff"
+
+	package_already_installed "$pkg" && return
 
 	# install dependencies first
 
 	# now install
 	install_libtiff_from_source
-	package_mark_installed
+
+	package_mark_installed "$pkg"
 }
 
 function install_openjpeg ()
 {
 	msg "[$FUNCNAME]"
 
-	package_already_installed "openjpeg" && return
+	local pkg="openjpeg"
+
+	package_already_installed "$pkg" && return
 
 	# install dependencies first
 	install_cmake
 
 	# now install
 	install_openjpeg_from_source
-	package_mark_installed
+
+	package_mark_installed "$pkg"
 }
 
 function install_zlib ()
 {
 	msg "[$FUNCNAME]"
 
-	package_already_installed "zlib" && return
+	local pkg="zlib"
+
+	package_already_installed "$pkg" && return
 
 	# install dependencies first
 
 	# now install
 	install_zlib_from_source
-	package_mark_installed
+
+	package_mark_installed "$pkg"
 }
 
 function install_libpng ()
 {
 	msg "[$FUNCNAME]"
 
-	package_already_installed "libpng" && return
+	local pkg="libpng"
+
+	package_already_installed "$pkg" && return
 
 	# install dependencies first
 
 	# now install
 	install_libpng_from_source
-	package_mark_installed
+
+	package_mark_installed "$pkg"
 }
 
 function install_imagemagick ()
 {
 	msg "[$FUNCNAME]"
 
+	local pkg="imagemagick"
+
 	# install dependencies first
 
-	package_already_installed "imagemagick" && return
+	package_already_installed "$pkg" && return
 
 	# now install
 	install_imagemagick_from_source
-	package_mark_installed
+
+	package_mark_installed "$pkg"
 }
 
 function install_leptonica ()
 {
 	msg "[$FUNCNAME]"
 
-	package_already_installed "leptonica" && return
+	local pkg="leptonica"
+
+	package_already_installed "$pkg" && return
 
 	# install dependencies first
 	install_libjpeg
@@ -498,21 +521,25 @@ function install_leptonica ()
 
 	# now install
 	install_leptonica_from_source
-	package_mark_installed
+
+	package_mark_installed "$pkg"
 }
 
 function install_tesseract ()
 {
 	msg "[$FUNCNAME]"
 
-	package_already_installed "tesseract" && return
+	local pkg="tesseract"
+
+	package_already_installed "$pkg" && return
 
 	# install dependencies first
 	install_leptonica
 
 	# now install
 	install_tesseract_from_source
-	package_mark_installed
+
+	package_mark_installed "$pkg"
 }
 
 function install_dependencies ()
