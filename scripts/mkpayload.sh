@@ -10,6 +10,7 @@ declare -a SRCURLS=(
 	"https://github.com/libjpeg-turbo/libjpeg-turbo/archive/2.0.1.tar.gz"
 	"https://download.osgeo.org/libtiff/tiff-4.0.10.tar.gz"
 	"https://download.sourceforge.net/libpng/libpng-1.6.36.tar.gz"
+	"https://www.zlib.net/zlib-1.2.11.tar.gz"
 	"https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/nasm-2.14.02.tar.gz"
 	"https://github.com/Kitware/CMake/archive/v3.13.3.tar.gz"
 )
@@ -41,6 +42,8 @@ LAMBDAZIP="${ZIPDIR}/lambda.zip"
 # misc
 
 SCRIPTNAME="$(basename $0)"
+
+declare -a INSTALLED
 
 # functions
 
@@ -213,6 +216,18 @@ function install_libtiff_from_source ()
 	popd > /dev/null || die "popd libtiff"
 }
 
+function install_zlib_from_source ()
+{
+	msg "[$FUNCNAME]"
+
+	extract_and_enter "zlib" "^[^/]*/configure$"
+
+	./configure --prefix="$INSTALLDIR" || die "could not configure zlib"
+	make install || die "could not build or install zlib"
+
+	popd > /dev/null || die "popd zlib"
+}
+
 function install_libpng_from_source ()
 {
 	msg "[$FUNCNAME]"
@@ -314,7 +329,7 @@ function create_payload ()
 		lib="$(echo "$line" | awk '{print $1}')"
 		res="$(echo "$line" | awk '{print $2}')"
 		cp "$res" "$DISTDIR"/lib/ || die "dist lib cp: [$lib]"
-	done < <(ldd "$DISTDIR"/bin/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u | egrep "/lib(jbig|jpeg|lept|openjp2|png|tesseract|tiff|Magick)")
+	done < <(ldd "$DISTDIR"/bin/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u | egrep "/lib(jbig|jpeg|lept|openjp2|png|tesseract|tiff|z|Magick)")
 #	done < <(ldd "$DISTDIR"/bin/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u)
 
 	echo "[libs]"
@@ -333,11 +348,34 @@ function create_payload ()
 	popd > /dev/null || die "popd zip"
 }
 
+function package_already_installed ()
+{
+	pkg="$1"
+
+	[ "$pkg" = "" ] && return 1
+
+	if [ "${INSTALLED[$pkg]}" = "y" ]; then
+		msg "$pkg was already installed; skipping"
+		return 0
+	fi
+
+	return 1
+}
+
+function package_mark_installed ()
+{
+	[ "$pkg" != "" ] && INSTALLED[$pkg]="y"
+
+	pkg=""
+}
+
 function install_cmake ()
 {
 	msg "[$FUNCNAME]"
 
-	# if it already exists, no need to install
+	package_already_installed "cmake" && return
+
+	# just log whether it exists and build anyway
 #	command_exists "cmake" && return
 	command_exists "cmake"
 
@@ -345,13 +383,16 @@ function install_cmake ()
 
 	# now install
 	install_cmake_from_source
+	package_mark_installed
 }
 
 function install_nasm ()
 {
 	msg "[$FUNCNAME]"
 
-	# if it already exists, no need to install
+	package_already_installed "nasm" && return
+
+	# just log whether it exists and build anyway
 #	command_exists "nasm" && return
 	command_exists "nasm"
 
@@ -359,11 +400,14 @@ function install_nasm ()
 
 	# now install
 	install_nasm_from_source
+	package_mark_installed
 }
 
 function install_libjpeg ()
 {
 	msg "[$FUNCNAME]"
+
+	package_already_installed "libjpeg" && return
 
 	# install dependencies first
 	install_cmake
@@ -371,37 +415,60 @@ function install_libjpeg ()
 
 	# now install
 	install_libjpeg_from_source
+	package_mark_installed
 }
 
 function install_libtiff ()
 {
 	msg "[$FUNCNAME]"
 
+	package_already_installed "libtiff" && return
+
 	# install dependencies first
 
 	# now install
 	install_libtiff_from_source
+	package_mark_installed
 }
 
 function install_openjpeg ()
 {
 	msg "[$FUNCNAME]"
 
+	package_already_installed "openjpeg" && return
+
 	# install dependencies first
-	#install_cmake
+	install_cmake
 
 	# now install
 	install_openjpeg_from_source
+	package_mark_installed
+}
+
+function install_zlib ()
+{
+	msg "[$FUNCNAME]"
+
+	package_already_installed "zlib" && return
+
+	# install dependencies first
+
+	# now install
+	install_zlib_from_source
+	package_mark_installed
 }
 
 function install_libpng ()
 {
 	msg "[$FUNCNAME]"
 
+	package_already_installed "libpng" && return
+
 	# install dependencies first
 
 	# now install
 	install_libpng_from_source
+	package_mark_installed
 }
 
 function install_imagemagick ()
@@ -410,13 +477,18 @@ function install_imagemagick ()
 
 	# install dependencies first
 
+	package_already_installed "imagemagick" && return
+
 	# now install
 	install_imagemagick_from_source
+	package_mark_installed
 }
 
 function install_leptonica ()
 {
 	msg "[$FUNCNAME]"
+
+	package_already_installed "leptonica" && return
 
 	# install dependencies first
 	install_libjpeg
@@ -426,17 +498,21 @@ function install_leptonica ()
 
 	# now install
 	install_leptonica_from_source
+	package_mark_installed
 }
 
 function install_tesseract ()
 {
 	msg "[$FUNCNAME]"
 
+	package_already_installed "tesseract" && return
+
 	# install dependencies first
 	install_leptonica
 
 	# now install
 	install_tesseract_from_source
+	package_mark_installed
 }
 
 function install_dependencies ()
