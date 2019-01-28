@@ -374,9 +374,7 @@ function install_cmake ()
 
 	package_already_installed "$pkg" && return
 
-	# just log whether it exists and build anyway
-#	command_exists "cmake" && return
-	command_exists "cmake"
+	command_exists "cmake" && return
 
 	# install dependencies first
 
@@ -394,9 +392,7 @@ function install_nasm ()
 
 	package_already_installed "$pkg" && return
 
-	# just log whether it exists and build anyway
-#	command_exists "nasm" && return
-	command_exists "nasm"
+	command_exists "nasm" && return
 
 	# install dependencies first
 
