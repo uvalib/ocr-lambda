@@ -320,12 +320,20 @@ function create_payload ()
 	cp -R "${INSTALLDIR}/etc/ImageMagick-7" "${DISTDIR}/etc" || die "dist etc cp"
 	cp -R "${INSTALLDIR}/share/tessdata" "${DISTDIR}/share" || die "dist share cp"
 
+	# copy in libraries needed by our binaries
 	while read line; do
 		lib="$(echo "$line" | awk '{print $1}')"
 		res="$(echo "$line" | awk '{print $2}')"
-		cp "$res" "$DISTDIR"/lib/ || die "dist lib cp: [$lib]"
-	done < <(ldd "$DISTDIR"/bin/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u | egrep "/lib(jbig|jpeg|lept|openjp2|png|tesseract|tiff|z|Magick)")
-#	done < <(ldd "$DISTDIR"/bin/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u)
+		cp -f "$res" "$DISTDIR"/lib/ || die "dist bin lib cp: [$lib]"
+	done < <(ldd "$DISTDIR"/bin/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u)
+#	done < <(ldd "$DISTDIR"/bin/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u | egrep "/lib(jbig|jpeg|lept|openjp2|png|tesseract|tiff|z|Magick)")
+
+	# copy in libraries needed by our libraries
+	while read line; do
+		lib="$(echo "$line" | awk '{print $1}')"
+		res="$(echo "$line" | awk '{print $2}')"
+		cp -f "$res" "$DISTDIR"/lib/ || die "dist lib lib cp: [$lib]"
+	done < <(ldd "$DISTDIR"/lib/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u)
 
 	echo "[libs]"
 	libs="$(ldd "$DISTDIR"/{bin,lib}/*)"
