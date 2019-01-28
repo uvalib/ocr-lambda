@@ -45,6 +45,7 @@ type commandHistory struct {
 
 var sess *session.Session
 var cmds *commandHistory
+var home string
 
 func downloadImage(bucket, key, localFile string) (int64, error) {
 	downloader := s3manager.NewDownloader(sess)
@@ -146,16 +147,25 @@ func ocrImage(localConvertedImage, resultsBase, lang string) error {
 	return nil
 }
 
-func getVersion(command string, args ...string) string {
-	cmd := exec.Command(command, args...)
-	out, _ := cmd.CombinedOutput()
+func getLibraryVersions() {
+	var files []string
 
-	return string(out)
+	if matches, err := filepath.Glob(fmt.Sprintf("%s/bin/*", home)); err == nil {
+		files = append(files, matches...)
+	}
+
+	if matches, err := filepath.Glob(fmt.Sprintf("%s/lib/*", home)); err == nil {
+		files = append(files, matches...)
+	}
+
+	runCommand("ldd", files...)
 }
 
 func getSoftwareVersions() {
 	runCommand("magick", "--version")
 	runCommand("tesseract", "--version")
+
+	getLibraryVersions()
 }
 
 func saveCommandHistory(resultsBase string) {
@@ -266,7 +276,7 @@ func init() {
 
 	// set needed environment variables
 
-	home := os.Getenv("LAMBDA_TASK_ROOT")
+	home = os.Getenv("LAMBDA_TASK_ROOT")
 
 	os.Setenv("LD_LIBRARY_PATH", fmt.Sprintf("%s/lib:%s", home, os.Getenv("LD_LIBRARY_PATH")))
 	os.Setenv("PATH", fmt.Sprintf("%s/bin:%s", home, os.Getenv("PATH")))
