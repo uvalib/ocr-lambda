@@ -10,9 +10,6 @@ declare -a SRCURLS=(
 	"https://github.com/libjpeg-turbo/libjpeg-turbo/archive/2.0.1.tar.gz"
 	"https://download.osgeo.org/libtiff/tiff-4.0.10.tar.gz"
 	"https://download.sourceforge.net/libpng/libpng-1.6.36.tar.gz"
-	"https://www.zlib.net/zlib-1.2.11.tar.gz"
-	"https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/nasm-2.14.02.tar.gz"
-	"https://github.com/Kitware/CMake/archive/v3.13.3.tar.gz"
 )
 
 # urls for tesseract language files
@@ -26,7 +23,6 @@ declare -a LANGURLS=($(for lang in $LANGS; do printf "${LANGFMT}\n" "$lang"; don
 THISDIR="$(pwd -P)"
 BASEDIR="${THISDIR}/payload"
 
-BINDIR="${BASEDIR}/bin"
 SRCDIR="${BASEDIR}/src"
 LANGDIR="${BASEDIR}/lang"
 BUILDDIR="${BASEDIR}/build"
@@ -60,7 +56,7 @@ function msg ()
 
 function initialize_environment ()
 {
-	export PATH="${PATH}:${BINDIR}:${INSTALLDIR}/bin"
+	export PATH="${PATH}:${INSTALLDIR}/bin"
 	export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${INSTALLDIR}/lib64:${INSTALLDIR}/lib"
 	export PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:${INSTALLDIR}/lib64/pkgconfig:${INSTALLDIR}/lib/pkgconfig"
 	export CFLAGS="${CFLAGS} -I${INSTALLDIR}/include"
@@ -75,7 +71,16 @@ function clean_directories ()
 
 	rm -rf "$BASEDIR" || die "init rm"
 
-	mkdir -p "$BINDIR" "$SRCDIR" "$LANGDIR" "$BUILDDIR" "$INSTALLDIR" "$DISTDIR" "$ZIPDIR" || die "init mkdir"
+	mkdir -p "$SRCDIR" "$LANGDIR" "$BUILDDIR" "$INSTALLDIR" "$DISTDIR" "$ZIPDIR" || die "init mkdir"
+}
+
+function download_file ()
+{
+	local url="$1"
+
+	msg "downloading: [$url]"
+
+	curl -S -L -O -J "$url" || die "curl"
 }
 
 function download_dependencies ()
@@ -85,8 +90,7 @@ function download_dependencies ()
 	pushd "$SRCDIR" > /dev/null || die "src pushd"
 
 	for url in ${SRCURLS[@]}; do
-		msg "downloading: [$url]"
-		curl -sSLOJ "$url" || die "src curl"
+		download_file "$url"
 	done
 
 	popd > /dev/null
@@ -99,27 +103,10 @@ function download_languages ()
 	pushd "$LANGDIR" > /dev/null || die "lang pushd"
 
 	for url in ${LANGURLS[@]}; do
-		msg "downloading: [$url]"
-		curl -sSLOJ "$url" || die "lang curl"
+		download_file "$url"
 	done
 
 	popd > /dev/null
-}
-
-function command_exists ()
-{
-	local cmd="$1"
-	local verarg="$2"
-
-	if type -p "$cmd" > /dev/null 2>&1; then
-		[ "$verarg" != "" ] && $cmd $verarg
-		msg "found $cmd; skipping local build"
-		return 0
-	fi
-
-	msg "missing $cmd; building local version"
-
-	return 1
 }
 
 function extract_and_enter ()
@@ -149,7 +136,7 @@ function install_leptonica_from_source ()
 	extract_and_enter "leptonica" "^[^/]*/configure.ac$"
 
 	./autogen.sh || die "could not autogen leptonica"
-	./configure --prefix="$INSTALLDIR" --disable-static --enable-shared --disable-dependency-tracking || die "could not configure leptonica"
+	./configure --prefix="$INSTALLDIR" --enable-shared --disable-dependency-tracking || die "could not configure leptonica"
 	make install || die "could not build or install leptonica"
 
 	popd > /dev/null || die "popd leptonica"
@@ -168,7 +155,7 @@ function install_tesseract_from_source ()
 	extract_and_enter "tesseract" "^[^/]*/configure.ac$"
 
 	./autogen.sh || die "could not autogen tesseract"
-	./configure --prefix="$INSTALLDIR" --disable-static --enable-shared --disable-dependency-tracking --disable-graphics --disable-legacy || die "could not configure tesseract"
+	./configure --prefix="$INSTALLDIR" --enable-shared --disable-dependency-tracking --disable-graphics --disable-legacy || die "could not configure tesseract"
 	make install || die "could not build or install tesseract"
 
 	popd > /dev/null || die "popd tesseract"
@@ -180,7 +167,7 @@ function install_imagemagick_from_source ()
 
 	extract_and_enter "ImageMagick" "^[^/]*/configure.ac$"
 
-	./configure --prefix="$INSTALLDIR" --disable-static --enable-shared --disable-dependency-tracking || die "could not configure imagemagick"
+	./configure --prefix="$INSTALLDIR" --enable-shared --disable-dependency-tracking || die "could not configure imagemagick"
 	make install || die "could not build or install imagemagick"
 
 	popd > /dev/null || die "popd imagemagick"
@@ -195,7 +182,7 @@ function install_libjpeg_from_source ()
 	mkdir "build" || die "could not create build subdir"
 	pushd "build" || die "pushd libjpeg build"
 
-	cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALLDIR" -DENABLE_STATIC="FALSE" -DENABLE_SHARED="TRUE" || die "could not cmake libjpeg"
+	cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALLDIR" || die "could not cmake libjpeg"
 	make install || die "could not build or install libjpeg"
 
 	popd > /dev/null || die "popd libjpeg build"
@@ -209,22 +196,10 @@ function install_libtiff_from_source ()
 
 	extract_and_enter "tiff" "^[^/]*/configure.ac$"
 
-	./configure --prefix="$INSTALLDIR" --disable-static --enable-shared --disable-dependency-tracking || die "could not configure libtiff"
+	./configure --prefix="$INSTALLDIR" --enable-shared --disable-dependency-tracking || die "could not configure libtiff"
 	make install || die "could not build or install libtiff"
 
 	popd > /dev/null || die "popd libtiff"
-}
-
-function install_zlib_from_source ()
-{
-	msg "[$FUNCNAME]"
-
-	extract_and_enter "zlib" "^[^/]*/configure$"
-
-	./configure --prefix="$INSTALLDIR" || die "could not configure zlib"
-	make install || die "could not build or install zlib"
-
-	popd > /dev/null || die "popd zlib"
 }
 
 function install_libpng_from_source ()
@@ -233,63 +208,10 @@ function install_libpng_from_source ()
 
 	extract_and_enter "libpng" "^[^/]*/configure.ac$"
 
-	./configure --prefix="$INSTALLDIR" --disable-static --enable-shared --disable-dependency-tracking || die "could not configure libpng"
+	./configure --prefix="$INSTALLDIR" --enable-shared --disable-dependency-tracking || die "could not configure libpng"
 	make install || die "could not build or install libpng"
 
 	popd > /dev/null || die "popd libpng"
-}
-
-function install_cmake_from_source ()
-{
-	msg "[$FUNCNAME]"
-
-	extract_and_enter "CMake" "^[^/]*/bootstrap$"
-
-	./bootstrap --prefix="$INSTALLDIR" || die "could not configure cmake"
-	make install || die "could not build or install cmake"
-
-	popd > /dev/null || die "popd cmake"
-}
-
-function install_cmake_from_binary ()
-{
-	msg "[$FUNCNAME]"
-
-	extract_and_enter "cmake" "^[^/]*/bin/cmake$"
-
-	cp bin/cmake "$BINDIR"/
-
-	popd > /dev/null || die "popd cmake"
-}
-
-function install_nasm_from_source ()
-{
-	msg "[$FUNCNAME]"
-
-	extract_and_enter "nasm" "^[^/]*/configure.ac$"
-
-	./autogen.sh || die "could not autogen nasm"
-	./configure --prefix="$INSTALLDIR" --disable-static --enable-shared --disable-dependency-tracking || die "could not configure nasm"
-	make install || die "could not build or install nasm"
-
-	popd > /dev/null || die "popd nasm"
-}
-
-function install_nasm_from_binary ()
-{
-	msg "[$FUNCNAME]"
-
-	src="$(echo "$SRCDIR"/nasm-*)"
-	[ -f "$src" ] || die "not a source file: [$src]"
-
-	mkdir "nasm" || die "could not create nasm subdir"
-	pushd "nasm" || die "pushd nasm"
-
-	rpm2cpio "$src" | cpio -idmv || die "nasm cpio"
-
-	cp usr/bin/nasm "$BINDIR"/
-
-	popd > /dev/null || die "popd nasm"
 }
 
 function install_openjpeg_from_source ()
@@ -301,7 +223,7 @@ function install_openjpeg_from_source ()
 	mkdir "build" || die "could not create build subdir"
 	pushd "build" || die "pushd openjpeg build"
 
-	cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALLDIR" -DBUILD_STATIC_LIBS="OFF" -DBUILD_SHARED_LIBS="ON" || die "could not cmake openjpeg"
+	cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALLDIR" || die "could not cmake openjpeg"
 	make install || die "could not build or install openjpeg"
 
 	popd > /dev/null || die "popd openjpeg build"
@@ -330,14 +252,6 @@ function create_payload ()
 		res="$(echo "$line" | awk '{print $2}')"
 		cp -f "$res" "$DISTDIR"/lib/ || die "dist bin lib cp: [$lib]"
 	done < <(ldd "$DISTDIR"/bin/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u | egrep "/lib(jbig|jpeg|lept|openjp2|png|tesseract|tiff|z|Magick)")
-#	done < <(ldd "$DISTDIR"/bin/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u)
-
-	# copy in libraries needed by our libraries
-#	while read line; do
-#		lib="$(echo "$line" | awk '{print $1}')"
-#		res="$(echo "$line" | awk '{print $2}')"
-#		cp -f "$res" "$DISTDIR"/lib/ || die "dist lib lib cp: [$lib]"
-#	done < <(ldd "$DISTDIR"/lib/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u)
 
 	echo "[libs]"
 	libs="$(ldd "$DISTDIR"/{bin,lib}/*)"
@@ -378,42 +292,6 @@ function package_mark_installed ()
 	INSTALLED["$pkg"]="y"
 }
 
-function install_cmake ()
-{
-	msg "[$FUNCNAME]"
-
-	local pkg="cmake"
-
-	package_already_installed "$pkg" && return
-
-	command_exists "cmake" "--version" && return
-
-	# install dependencies first
-
-	# now install
-	install_cmake_from_source
-
-	package_mark_installed "$pkg"
-}
-
-function install_nasm ()
-{
-	msg "[$FUNCNAME]"
-
-	local pkg="nasm"
-
-	package_already_installed "$pkg" && return
-
-	command_exists "nasm" "-v" && return
-
-	# install dependencies first
-
-	# now install
-	install_nasm_from_source
-
-	package_mark_installed "$pkg"
-}
-
 function install_libjpeg ()
 {
 	msg "[$FUNCNAME]"
@@ -423,8 +301,6 @@ function install_libjpeg ()
 	package_already_installed "$pkg" && return
 
 	# install dependencies first
-	install_cmake
-	install_nasm
 
 	# now install
 	install_libjpeg_from_source
@@ -457,26 +333,9 @@ function install_openjpeg ()
 	package_already_installed "$pkg" && return
 
 	# install dependencies first
-	install_cmake
 
 	# now install
 	install_openjpeg_from_source
-
-	package_mark_installed "$pkg"
-}
-
-function install_zlib ()
-{
-	msg "[$FUNCNAME]"
-
-	local pkg="zlib"
-
-	package_already_installed "$pkg" && return
-
-	# install dependencies first
-
-	# now install
-	install_zlib_from_source
 
 	package_mark_installed "$pkg"
 }
@@ -490,7 +349,6 @@ function install_libpng ()
 	package_already_installed "$pkg" && return
 
 	# install dependencies first
-	install_zlib
 
 	# now install
 	install_libpng_from_source
@@ -571,6 +429,11 @@ function install_dependencies ()
 initialize_environment
 
 case $1 in
+	-c )
+		# just clean directories
+		clean_directories
+		;;
+
 	-d )
 		# just download files
 		download_dependencies
@@ -594,15 +457,15 @@ case $1 in
 		install_dependencies
 		;;
 
+	-p )
+		# just create the payload
+		create_payload
+		;;
+
 	-x )
 		# execute the specified function
 		shift
 		$@
-		;;
-
-	-z )
-		# just create the payload
-		create_payload
 		;;
 
 	* )
