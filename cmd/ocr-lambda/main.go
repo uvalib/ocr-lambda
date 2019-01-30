@@ -284,5 +284,6 @@ func init() {
 }
 
 func main() {
+	time.Sleep(600 * time.Second)
 	lambda.Start(handleOcrRequest)
 }
