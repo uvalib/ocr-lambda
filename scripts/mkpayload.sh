@@ -5,7 +5,7 @@
 declare -a SRCURLS=(
 	"https://github.com/tesseract-ocr/tesseract/archive/4.0.0.tar.gz"
 	"https://github.com/DanBloomberg/leptonica/archive/1.77.0.tar.gz"
-	"https://github.com/ImageMagick/ImageMagick/archive/7.0.8-24.tar.gz"
+	"https://github.com/ImageMagick/ImageMagick/archive/7.0.8-25.tar.gz"
 	"https://github.com/uclouvain/openjpeg/archive/v2.3.0.tar.gz"
 	"https://github.com/libjpeg-turbo/libjpeg-turbo/archive/2.0.1.tar.gz"
 	"https://download.osgeo.org/libtiff/tiff-4.0.10.tar.gz"
@@ -76,7 +76,6 @@ function clean_directories ()
 	rm -rf "$BASEDIR" || die "init rm"
 
 	mkdir -p "$BINDIR" "$SRCDIR" "$LANGDIR" "$BUILDDIR" "$INSTALLDIR" "$DISTDIR" "$ZIPDIR" || die "init mkdir"
-	mkdir -p "$INSTALLDIR"/bin || die "init mkdir install subdirs"
 }
 
 function download_dependencies ()
@@ -110,8 +109,10 @@ function download_languages ()
 function command_exists ()
 {
 	local cmd="$1"
+	local verarg="$2"
 
 	if type -p "$cmd" > /dev/null 2>&1; then
+		[ "$verarg" != "" ] && $cmd $verarg
 		msg "found $cmd; skipping local build"
 		return 0
 	fi
@@ -148,10 +149,16 @@ function install_leptonica_from_source ()
 	extract_and_enter "leptonica" "^[^/]*/configure.ac$"
 
 	./autogen.sh || die "could not autogen leptonica"
-	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure leptonica"
+	./configure --prefix="$INSTALLDIR" --disable-static --enable-shared --disable-dependency-tracking || die "could not configure leptonica"
 	make install || die "could not build or install leptonica"
 
 	popd > /dev/null || die "popd leptonica"
+}
+
+function install_tesseract_language_files ()
+{
+	TESSDATA="${INSTALLDIR}/share/tessdata"
+	mv "$LANGDIR"/* "$TESSDATA"/ || die "lang mv"
 }
 
 function install_tesseract_from_source ()
@@ -161,11 +168,8 @@ function install_tesseract_from_source ()
 	extract_and_enter "tesseract" "^[^/]*/configure.ac$"
 
 	./autogen.sh || die "could not autogen tesseract"
-	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking --disable-graphics --disable-legacy || die "could not configure tesseract"
+	./configure --prefix="$INSTALLDIR" --disable-static --enable-shared --disable-dependency-tracking --disable-graphics --disable-legacy || die "could not configure tesseract"
 	make install || die "could not build or install tesseract"
-
-	TESSDATA="${INSTALLDIR}/share/tessdata"
-	mv "$LANGDIR"/* "$TESSDATA"/ || die "lang mv"
 
 	popd > /dev/null || die "popd tesseract"
 }
@@ -176,7 +180,7 @@ function install_imagemagick_from_source ()
 
 	extract_and_enter "ImageMagick" "^[^/]*/configure.ac$"
 
-	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure imagemagick"
+	./configure --prefix="$INSTALLDIR" --disable-static --enable-shared --disable-dependency-tracking || die "could not configure imagemagick"
 	make install || die "could not build or install imagemagick"
 
 	popd > /dev/null || die "popd imagemagick"
@@ -191,7 +195,7 @@ function install_libjpeg_from_source ()
 	mkdir "build" || die "could not create build subdir"
 	pushd "build" || die "pushd libjpeg build"
 
-	cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALLDIR" || die "could not cmake libjpeg"
+	cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALLDIR" -DENABLE_STATIC="FALSE" -DENABLE_SHARED="TRUE" || die "could not cmake libjpeg"
 	make install || die "could not build or install libjpeg"
 
 	popd > /dev/null || die "popd libjpeg build"
@@ -205,7 +209,7 @@ function install_libtiff_from_source ()
 
 	extract_and_enter "tiff" "^[^/]*/configure.ac$"
 
-	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure libtiff"
+	./configure --prefix="$INSTALLDIR" --disable-static --enable-shared --disable-dependency-tracking || die "could not configure libtiff"
 	make install || die "could not build or install libtiff"
 
 	popd > /dev/null || die "popd libtiff"
@@ -229,7 +233,7 @@ function install_libpng_from_source ()
 
 	extract_and_enter "libpng" "^[^/]*/configure.ac$"
 
-	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure libpng"
+	./configure --prefix="$INSTALLDIR" --disable-static --enable-shared --disable-dependency-tracking || die "could not configure libpng"
 	make install || die "could not build or install libpng"
 
 	popd > /dev/null || die "popd libpng"
@@ -265,7 +269,7 @@ function install_nasm_from_source ()
 	extract_and_enter "nasm" "^[^/]*/configure.ac$"
 
 	./autogen.sh || die "could not autogen nasm"
-	./configure --prefix="$INSTALLDIR" --disable-static --disable-dependency-tracking || die "could not configure nasm"
+	./configure --prefix="$INSTALLDIR" --disable-static --enable-shared --disable-dependency-tracking || die "could not configure nasm"
 	make install || die "could not build or install nasm"
 
 	popd > /dev/null || die "popd nasm"
@@ -297,7 +301,7 @@ function install_openjpeg_from_source ()
 	mkdir "build" || die "could not create build subdir"
 	pushd "build" || die "pushd openjpeg build"
 
-	cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALLDIR" || die "could not cmake openjpeg"
+	cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTALLDIR" -DBUILD_STATIC_LIBS="OFF" -DBUILD_SHARED_LIBS="ON" || die "could not cmake openjpeg"
 	make install || die "could not build or install openjpeg"
 
 	popd > /dev/null || die "popd openjpeg build"
@@ -325,15 +329,15 @@ function create_payload ()
 		lib="$(echo "$line" | awk '{print $1}')"
 		res="$(echo "$line" | awk '{print $2}')"
 		cp -f "$res" "$DISTDIR"/lib/ || die "dist bin lib cp: [$lib]"
-	done < <(ldd "$DISTDIR"/bin/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u)
-#	done < <(ldd "$DISTDIR"/bin/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u | egrep "/lib(jbig|jpeg|lept|openjp2|png|tesseract|tiff|z|Magick)")
+	done < <(ldd "$DISTDIR"/bin/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u | egrep "/lib(jbig|jpeg|lept|openjp2|png|tesseract|tiff|z|Magick)")
+#	done < <(ldd "$DISTDIR"/bin/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u)
 
 	# copy in libraries needed by our libraries
-	while read line; do
-		lib="$(echo "$line" | awk '{print $1}')"
-		res="$(echo "$line" | awk '{print $2}')"
-		cp -f "$res" "$DISTDIR"/lib/ || die "dist lib lib cp: [$lib]"
-	done < <(ldd "$DISTDIR"/lib/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u)
+#	while read line; do
+#		lib="$(echo "$line" | awk '{print $1}')"
+#		res="$(echo "$line" | awk '{print $2}')"
+#		cp -f "$res" "$DISTDIR"/lib/ || die "dist lib lib cp: [$lib]"
+#	done < <(ldd "$DISTDIR"/lib/* | awk '{if (/ => \//) printf "%s %s\n", $1, $3}' | sort -u)
 
 	echo "[libs]"
 	libs="$(ldd "$DISTDIR"/{bin,lib}/*)"
@@ -382,7 +386,7 @@ function install_cmake ()
 
 	package_already_installed "$pkg" && return
 
-	command_exists "cmake" && return
+	command_exists "cmake" "--version" && return
 
 	# install dependencies first
 
@@ -400,7 +404,7 @@ function install_nasm ()
 
 	package_already_installed "$pkg" && return
 
-	command_exists "nasm" && return
+	command_exists "nasm" "-v" && return
 
 	# install dependencies first
 
@@ -486,6 +490,7 @@ function install_libpng ()
 	package_already_installed "$pkg" && return
 
 	# install dependencies first
+	install_zlib
 
 	# now install
 	install_libpng_from_source
@@ -542,6 +547,7 @@ function install_tesseract ()
 
 	# now install
 	install_tesseract_from_source
+	install_tesseract_language_files
 
 	package_mark_installed "$pkg"
 }
@@ -549,6 +555,8 @@ function install_tesseract ()
 function install_dependencies ()
 {
 	msg "[$FUNCNAME]"
+
+	rm -rf "$INSTALLDIR" || die "install rm"
 
 	pushd "$BUILDDIR" > /dev/null || die "install pushd"
 
