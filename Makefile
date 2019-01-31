@@ -83,8 +83,10 @@ lambda: lambda-vars linux
 
 rebuild-lambda: lambda-vars rebuild-linux
 
-payload: lambda
+lambda-env:
 	@bash scripts/mkpayload.sh -f
+
+payload: lambda lambda-env
 
 # maintenance rules
 fmt:
