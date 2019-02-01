@@ -83,7 +83,7 @@ lambda: lambda-vars linux
 
 rebuild-lambda: lambda-vars rebuild-linux
 
-payload:
+lambda-payload:
 	@bash scripts/mkpayload.sh -f
 
 # maintenance rules
