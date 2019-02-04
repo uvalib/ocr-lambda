@@ -15,8 +15,12 @@ declare -a SRCURLS=(
 # urls for tesseract language files
 
 LANGS="eng osd fra spa ara deu rus ell grc"
-LANGFMT="https://github.com/tesseract-ocr/tessdata_best/raw/master/%s.traineddata"
-declare -a LANGURLS=($(for lang in $LANGS; do printf "${LANGFMT}\n" "$lang"; done))
+# fast or best:
+LANGTYPE="fast"
+# master or specific branch:
+LANGBRANCH="4.0.0"
+LANGTEMPLATE="https://github.com/tesseract-ocr/tessdata_${LANGTYPE}/raw/${LANGBRANCH}/%s.traineddata"
+declare -a LANGURLS=($(for lang in $LANGS; do printf "${LANGTEMPLATE}\n" "$lang"; done))
 
 # directories
 
