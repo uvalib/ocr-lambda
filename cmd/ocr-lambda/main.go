@@ -192,7 +192,7 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 
 	localWorkDir := "/tmp/ocr-ws"
 	localSourceImage := imageBase
-	localConvertedImage := "converted.tif"
+	localConvertedImage := fmt.Sprintf("%s.tif", resultsBase)
 	localResultsTxt := fmt.Sprintf("%s.txt", resultsBase)
 
 	remoteSubDir := req.Pid
