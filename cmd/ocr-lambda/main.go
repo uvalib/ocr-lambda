@@ -23,6 +23,7 @@ import (
 // json for workflow <-> lambda communication
 type lambdaRequest struct {
 	Lang      string `json:"lang,omitempty"`      // language to use for ocr
+	Dpi       string `json:"dpi,omitempty"`       // converted image dpi
 	Bucket    string `json:"bucket,omitempty"`    // s3 bucket for source image
 	Key       string `json:"key,omitempty"`       // s3 key for source image
 	ParentPid string `json:"parentpid,omitempty"` // pid of metadata parent, if applicable
@@ -122,9 +123,13 @@ func runCommand(command string, arguments ...string) (string, error) {
 	return output, err
 }
 
-func convertImage(localSourceImage, localConvertedImage string) error {
+func convertImage(localSourceImage, localConvertedImage, dpi string) error {
+	if dpi == "" {
+		dpi = "300"
+	}
+
 	cmd := "magick"
-	args := []string{"convert", "-units", "PixelsPerInch", "-type", "Grayscale", "+compress", "+repage", fmt.Sprintf("%s[0]", localSourceImage), "-resample", "300", localConvertedImage}
+	args := []string{"convert", "-units", "PixelsPerInch", "-type", "Grayscale", "+compress", "+repage", fmt.Sprintf("%s[0]", localSourceImage), "-resample", dpi, localConvertedImage}
 
 	if out, err := runCommand(cmd, args...); err != nil {
 		return errors.New(fmt.Sprintf("Failed to convert source image: [%s] (%s)", err.Error(), out))
@@ -229,7 +234,7 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 
 	// run magick
 
-	if err := convertImage(localSourceImage, localConvertedImage); err != nil {
+	if err := convertImage(localSourceImage, localConvertedImage, req.Dpi); err != nil {
 		return "", err
 	}
 
