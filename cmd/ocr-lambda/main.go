@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -129,10 +130,6 @@ func runCommand(command string, arguments ...string) (string, error) {
 }
 
 func convertImage(localSourceImage, localConvertedImage, dpi string) error {
-	if dpi == "" {
-		dpi = "300"
-	}
-
 	cmd := "magick"
 	args := []string{"convert", "-units", "PixelsPerInch", "-type", "Grayscale", "+compress", "+repage", fmt.Sprintf("%s[0]", localSourceImage), "-resample", dpi, localConvertedImage}
 
@@ -205,12 +202,21 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 	localConvertedImage := fmt.Sprintf("%s.tif", resultsBase)
 	localResultsTxt := fmt.Sprintf("%s.txt", resultsBase)
 
+	// ensure dpi is in expected format and range
+
+	dpi := req.Dpi
+	if n, _ := strconv.Atoi(dpi); n < 100 || n > 1200 {
+		dpi = "600"
+	}
+
+	// build s3 results path
+
 	remoteSubDir := req.Pid
 	if req.Pid != req.ParentPid {
 		remoteSubDir = path.Join(req.ParentPid, req.Pid)
 	}
 
-	remoteResultsPrefix := path.Join(resultsBase, remoteSubDir)
+	remoteResultsPrefix := path.Join(resultsBase, remoteSubDir, dpi)
 
 	// create and change to temporary working directory
 
@@ -239,7 +245,7 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 
 	// run magick
 
-	if err := convertImage(localSourceImage, localConvertedImage, req.Dpi); err != nil {
+	if err := convertImage(localSourceImage, localConvertedImage, dpi); err != nil {
 		return "", err
 	}
 
@@ -295,6 +301,5 @@ func init() {
 }
 
 func main() {
-	time.Sleep(000 * time.Second)
 	lambda.Start(handleOcrRequest)
 }
