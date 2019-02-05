@@ -14,7 +14,7 @@ declare -a SRCURLS=(
 
 # urls for tesseract language files
 
-LANGS="eng osd fra spa ara deu rus ell grc"
+LANGS="eng osd fra spa ara deu rus ell grc lat"
 # fast or best:
 LANGTYPE="fast"
 # master or specific branch:
