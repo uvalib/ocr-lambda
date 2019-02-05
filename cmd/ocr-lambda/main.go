@@ -39,6 +39,7 @@ type commandInfo struct {
 	Command   string   `json:"command,omitempty"`
 	Arguments []string `json:"arguments,omitempty"`
 	Output    string   `json:"output,omitempty"`
+	Duration  string   `json:"duration,omitempty"`
 }
 
 type commandHistory struct {
@@ -114,11 +115,15 @@ func stripExtension(fileName string) string {
 }
 
 func runCommand(command string, arguments ...string) (string, error) {
+	start := time.Now()
+
 	out, err := exec.Command(command, arguments...).CombinedOutput()
+
+	duration := time.Since(start).Seconds()
 
 	output := string(out)
 
-	cmds.Commands = append(cmds.Commands, commandInfo{Command: command, Arguments: arguments, Output: output})
+	cmds.Commands = append(cmds.Commands, commandInfo{Command: command, Arguments: arguments, Output: output, Duration: fmt.Sprintf("%0.2f", duration)})
 
 	return output, err
 }
