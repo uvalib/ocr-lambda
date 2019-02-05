@@ -124,7 +124,7 @@ func runCommand(command string, arguments ...string) (string, error) {
 
 func convertImage(localSourceImage, localConvertedImage string) error {
 	cmd := "magick"
-	args := []string{"convert", "-density", "300", "-units", "PixelsPerInch", "-type", "Grayscale", "+compress", "+repage", fmt.Sprintf("%s[0]", localSourceImage), localConvertedImage}
+	args := []string{"convert", "-units", "PixelsPerInch", "-type", "Grayscale", "+compress", "+repage", fmt.Sprintf("%s[0]", localSourceImage), "-resample", "300", localConvertedImage}
 
 	if out, err := runCommand(cmd, args...); err != nil {
 		return errors.New(fmt.Sprintf("Failed to convert source image: [%s] (%s)", err.Error(), out))
