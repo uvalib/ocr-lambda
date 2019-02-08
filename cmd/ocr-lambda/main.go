@@ -145,7 +145,7 @@ func ocrImage(localConvertedImage, resultsBase, lang string) error {
 	}
 
 	cmd := "tesseract"
-	args := []string{localConvertedImage, resultsBase, "--psm", "1", "-l", lang, "txt", "hocr", "pdf"}
+	args := []string{localConvertedImage, resultsBase, "--psm", "1", "-l", lang, "txt", "hocr"}
 
 	if out, err := runCommand(cmd, args...); err != nil {
 		return errors.New(fmt.Sprintf("Failed to ocr converted image: [%s] (%s)", err.Error(), out))
