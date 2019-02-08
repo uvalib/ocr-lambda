@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -24,7 +23,7 @@ import (
 // json for workflow <-> lambda communication
 type lambdaRequest struct {
 	Lang      string `json:"lang,omitempty"`      // language to use for ocr
-	Dpi       string `json:"dpi,omitempty"`       // converted image dpi
+	Scale     string `json:"scale,omitempty"`     // converted image scale factor
 	Bucket    string `json:"bucket,omitempty"`    // s3 bucket for source image
 	Key       string `json:"key,omitempty"`       // s3 key for source image
 	ParentPid string `json:"parentpid,omitempty"` // pid of metadata parent, if applicable
@@ -129,9 +128,9 @@ func runCommand(command string, arguments ...string) (string, error) {
 	return output, err
 }
 
-func convertImage(localSourceImage, localConvertedImage, dpi string) error {
+func convertImage(localSourceImage, localConvertedImage, scale string) error {
 	cmd := "magick"
-	args := []string{"convert", "-units", "PixelsPerInch", "-type", "Grayscale", "+compress", "+repage", fmt.Sprintf("%s[0]", localSourceImage), "-resample", dpi, localConvertedImage}
+	args := []string{"convert", "-units", "PixelsPerInch", "-type", "Grayscale", "+compress", "+repage", fmt.Sprintf("%s[0]", localSourceImage), "-filter", "Lanczos", "-resize", fmt.Sprintf("%s%%", scale), localConvertedImage}
 
 	if out, err := runCommand(cmd, args...); err != nil {
 		return errors.New(fmt.Sprintf("Failed to convert source image: [%s] (%s)", err.Error(), out))
@@ -202,13 +201,6 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 	localConvertedImage := fmt.Sprintf("%s.tif", resultsBase)
 	localResultsTxt := fmt.Sprintf("%s.txt", resultsBase)
 
-	// ensure dpi is in expected format and range
-
-	dpi := req.Dpi
-	if n, _ := strconv.Atoi(dpi); n < 100 || n > 1200 {
-		dpi = "600"
-	}
-
 	// build s3 results path
 
 	remoteSubDir := req.Pid
@@ -216,7 +208,7 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 		remoteSubDir = path.Join(req.ParentPid, req.Pid)
 	}
 
-	remoteResultsPrefix := path.Join(resultsBase, remoteSubDir, dpi)
+	remoteResultsPrefix := path.Join(resultsBase, remoteSubDir, req.Scale)
 
 	// create and change to temporary working directory
 
@@ -245,7 +237,7 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 
 	// run magick
 
-	if err := convertImage(localSourceImage, localConvertedImage, dpi); err != nil {
+	if err := convertImage(localSourceImage, localConvertedImage, req.Scale); err != nil {
 		return "", err
 	}
 
