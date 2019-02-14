@@ -198,7 +198,9 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 
 	localWorkDir := "/tmp/ocr-ws"
 	localSourceImage := imageBase
-	localConvertedImage := fmt.Sprintf("%s.tif", resultsBase)
+	// prefix with resultsBase if we want to store converted image on s3:
+	//localConvertedImage := fmt.Sprintf("%s.tif", resultsBase)
+	localConvertedImage := "converted.tif"
 	localResultsTxt := fmt.Sprintf("%s.txt", resultsBase)
 
 	// build s3 results path
