@@ -79,11 +79,18 @@ rebuild-linux: target-linux rebuild
 lambda-vars:
 	$(eval PACKAGES = $(PKGLAMBDA))
 
-lambda: lambda-vars linux
+build-function: lambda-vars linux
 
-rebuild-lambda: lambda-vars rebuild-linux
+rebuild-function: lambda-vars rebuild-linux
 
-lambda-payload:
+# builds lambda function and replaces existing one in a lambda payload
+# assumes lambda environment is already built and exists as payload/zip/lambda.zip
+update-payload-function: build-function
+	@bash scripts/mkpayload.sh -u
+
+# builds lambda environment and creates a lambda payload in payload/zip/lambda.zip
+# assumes lambda function is built and exists as bin/ocr-lambda
+build-payload:
 	@bash scripts/mkpayload.sh -f
 
 # maintenance rules

@@ -5,9 +5,9 @@
 declare -a SRCURLS=(
 	"https://github.com/tesseract-ocr/tesseract/archive/4.0.0.tar.gz"
 	"https://github.com/DanBloomberg/leptonica/archive/1.77.0.tar.gz"
-	"https://github.com/ImageMagick/ImageMagick/archive/7.0.8-26.tar.gz"
+	"https://github.com/ImageMagick/ImageMagick/archive/7.0.8-27.tar.gz"
 	"https://github.com/uclouvain/openjpeg/archive/v2.3.0.tar.gz"
-	"https://github.com/libjpeg-turbo/libjpeg-turbo/archive/2.0.1.tar.gz"
+	"https://github.com/libjpeg-turbo/libjpeg-turbo/archive/2.0.2.tar.gz"
 	"https://download.osgeo.org/libtiff/tiff-4.0.10.tar.gz"
 	"https://download.sourceforge.net/libpng/libpng-1.6.36.tar.gz"
 )
@@ -36,7 +36,8 @@ ZIPDIR="${BASEDIR}/zip"
 
 # files
 
-LAMBDABIN="${THISDIR}/bin/ocr-lambda"
+LAMBDA="ocr-lambda"
+LAMBDABIN="${THISDIR}/bin/${LAMBDA}"
 LAMBDAZIP="${ZIPDIR}/lambda.zip"
 
 # misc
@@ -273,6 +274,28 @@ function create_payload ()
 	popd > /dev/null || die "popd zip"
 }
 
+function update_payload ()
+{
+	msg "[$FUNCNAME]"
+
+	rm -rf "$DISTDIR"/ || die "dist rm"
+
+	unzip -d "$DISTDIR" "$LAMBDAZIP" || die "unzip"
+
+	rm -f "$LAMBDAZIP" || die "zip rm"
+
+	rm -f "${DISTDIR}/${LAMBDA}" || die "rm lambda"
+
+	cp "$LAMBDABIN" "$DISTDIR"/ || die "dist bin cp lambda"
+
+	find "$DISTDIR" \( \( -type d \) -o \( -type f -a -perm /a+x \) \) -print0 | xargs -0r chmod 755
+	find "$DISTDIR" -type f -a \! -perm /a+x -print0 | xargs -0r chmod 644
+
+	pushd "$DISTDIR" > /dev/null || die "dist cd"
+	zip -r "$LAMBDAZIP" . || die "zip"
+	popd > /dev/null || die "popd zip"
+}
+
 function package_already_installed ()
 {
 	local pkg="$1"
@@ -464,6 +487,11 @@ case $1 in
 	-p )
 		# just create the payload
 		create_payload
+		;;
+
+	-u )
+		# update the existing payload with new lambda function
+		update_payload
 		;;
 
 	-x )
