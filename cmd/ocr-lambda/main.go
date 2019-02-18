@@ -125,7 +125,7 @@ func runCommand(command string, arguments ...string) (string, error) {
 
 	output := string(out)
 
-	cmds.Commands = append(cmds.Commands, commandInfo{Command: command, Arguments: arguments, Output: output, Duration: fmt.Sprintf("%0.2f", duration)})
+	cmds.Commands = append(cmds.Commands, commandInfo{Command: command, Arguments: arguments, Output: output, Duration: fmt.Sprintf("%0.3f", duration)})
 
 	return output, err
 }
@@ -136,6 +136,10 @@ func downloadFile(url, filename string) error {
 		return err
 	}
 	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return errors.New(fmt.Sprintf("Failed to download language file: [%s] (%s)", url, res.Status))
+	}
 
 	f, err := os.Create(filename)
 	if err != nil {
