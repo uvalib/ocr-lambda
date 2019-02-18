@@ -160,22 +160,19 @@ func checkLanguages(lang string) error {
 
 		// check if language file exists
 		langFile := fmt.Sprintf("%s/%s.traineddata", os.Getenv("TESSDATA_PREFIX"), l)
-		_, err = os.Stat(langFile)
-		if err == nil {
+		if _, err = os.Stat(langFile); err == nil {
 			continue
 		}
 
 		// attempt to download as language file
 		langUrl := fmt.Sprintf(langUrlTemplate, langType, langBranch, "", l)
-		err = downloadFile(langUrl, langFile)
-		if err == nil {
+		if err = downloadFile(langUrl, langFile); err == nil {
 			continue
 		}
 
 		// attempt to download as script file
 		scriptUrl := fmt.Sprintf(langUrlTemplate, langType, langBranch, "script/", l)
-		err = downloadFile(scriptUrl, langFile)
-		if err == nil {
+		if err = downloadFile(scriptUrl, langFile); err == nil {
 			continue
 		}
 
@@ -364,7 +361,7 @@ func init() {
 	tessdataLambda := fmt.Sprintf("%s/share/tessdata", home)
 
 	os.RemoveAll(tessdataLocal)
-	exec.Command("cp", "-R", "-p", tessdataLambda, tessdataLocal)
+	exec.Command("cp", "-R", "-p", tessdataLambda, tessdataLocal).Run()
 }
 
 func main() {
