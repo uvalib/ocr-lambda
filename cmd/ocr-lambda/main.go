@@ -226,6 +226,7 @@ func getLibraryVersions() {
 func getSoftwareVersions() {
 	runCommand("magick", "--version")
 	runCommand("tesseract", "--version")
+	runCommand("find", os.Getenv("TESSDATA_PREFIX"))
 
 	getLibraryVersions()
 }
