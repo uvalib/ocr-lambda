@@ -152,8 +152,8 @@ func downloadFile(url, filename string) error {
 	return err
 }
 
-func checkLanguages(lang string) error {
-	langs := strings.Split(lang, "+")
+func checkLanguages(langStr string) error {
+	langs := strings.Split(langStr, "+")
 
 	// certain languages depend on other language files, make sure they are pulled in
 
@@ -164,9 +164,14 @@ func checkLanguages(lang string) error {
 		"uzb_cyrl": "uzb",
 	}
 
-	var langsAll []string
+	// osd should always be present, if not specified in language list
+	langsAll := []string{"osd"}
 
 	for _, l := range langs {
+		if l == "" {
+			continue
+		}
+
 		langsAll = append(langsAll, l)
 
 		langDep := langsMap[l]
@@ -218,13 +223,9 @@ func convertImage(localSourceImage, localConvertedImage, scale string) error {
 	return nil
 }
 
-func ocrImage(localConvertedImage, resultsBase, lang string) error {
-	if lang == "" {
-		lang = "eng"
-	}
-
+func ocrImage(localConvertedImage, resultsBase, langStr string) error {
 	cmd := "tesseract"
-	args := []string{localConvertedImage, resultsBase, "--psm", "1", "-l", lang, "txt", "hocr"}
+	args := []string{localConvertedImage, resultsBase, "--psm", "1", "-l", langStr, "txt", "hocr"}
 
 	if out, err := runCommand(cmd, args...); err != nil {
 		return errors.New(fmt.Sprintf("Failed to ocr converted image: [%s] (%s)", err.Error(), out))
@@ -291,6 +292,12 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 
 	remoteResultsPrefix := path.Join(resultsBase, remoteSubDir, req.Scale)
 
+	// set default language if none specified
+	langStr := req.Lang
+	if langStr == "" {
+		langStr = "eng"
+	}
+
 	// create and change to temporary working directory
 
 	if err := os.MkdirAll(localWorkDir, 0755); err != nil {
@@ -321,7 +328,7 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 
 	runCommand("find", os.Getenv("TESSDATA_PREFIX"))
 	runCommand("ls", "-laFR", os.Getenv("TESSDATA_PREFIX"))
-	if err := checkLanguages(req.Lang); err != nil {
+	if err := checkLanguages(langStr); err != nil {
 		return "", err
 	}
 	runCommand("find", os.Getenv("TESSDATA_PREFIX"))
@@ -335,7 +342,7 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 
 	// run tesseract
 
-	if err := ocrImage(localConvertedImage, resultsBase, req.Lang); err != nil {
+	if err := ocrImage(localConvertedImage, resultsBase, langStr); err != nil {
 		return "", err
 	}
 
