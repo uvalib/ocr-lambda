@@ -155,7 +155,7 @@ func checkLanguages(lang string) error {
 	langBranch := "4.0.0"
 	langUrlTemplate := "https://github.com/tesseract-ocr/tessdata_%s/raw/%s/%s%s.traineddata"
 
-	for l := range langs {
+	for _, l := range langs {
 		var err error
 
 		// check if language file exists
