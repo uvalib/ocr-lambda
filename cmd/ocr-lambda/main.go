@@ -160,19 +160,22 @@ func checkLanguages(lang string) error {
 
 		// check if language file exists
 		langFile := fmt.Sprintf("%s/%s.traineddata", os.Getenv("TESSDATA_PREFIX"), l)
-		if _, err = os.Stat(langFile); err == nil {
+		_, err = os.Stat(langFile)
+		if err == nil {
 			continue
 		}
 
 		// attempt to download as language file
 		langUrl := fmt.Sprintf(langUrlTemplate, langType, langBranch, "", l)
-		if err = downloadFile(langUrl, langFile); err == nil {
+		err = downloadFile(langUrl, langFile)
+		if err == nil {
 			continue
 		}
 
 		// attempt to download as script file
 		scriptUrl := fmt.Sprintf(langUrlTemplate, langType, langBranch, "script/", l)
-		if err = downloadFile(scriptUrl, langFile); err == nil {
+		err = downloadFile(scriptUrl, langFile)
+		if err == nil {
 			continue
 		}
 
