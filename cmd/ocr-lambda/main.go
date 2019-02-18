@@ -155,11 +155,26 @@ func downloadFile(url, filename string) error {
 func checkLanguages(lang string) error {
 	langs := strings.Split(lang, "+")
 
+	// certain languages depend on other language files, make sure they are pulled in
+
+	langsMap := map[string]string{
+		"aze": "aze_cyrl",
+		"aze_cyrl": "aze",
+		"uzb": "uzb_cyrl",
+		"uzb_cyrl": "uzb",
+	}
+
+	var langsAll []string
+
+	for _, l := range langs {
+		langsAll = append(langsAll, l, langsMap[l])
+	}
+
 	langType := "fast"
 	langBranch := "4.0.0"
 	langUrlTemplate := "https://github.com/tesseract-ocr/tessdata_%s/raw/%s/%s%s.traineddata"
 
-	for _, l := range langs {
+	for _, l := range langsAll {
 		var err error
 
 		// check if language file exists
