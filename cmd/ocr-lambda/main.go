@@ -226,7 +226,6 @@ func getLibraryVersions() {
 func getSoftwareVersions() {
 	runCommand("magick", "--version")
 	runCommand("tesseract", "--version")
-	runCommand("find", os.Getenv("TESSDATA_PREFIX"))
 
 	getLibraryVersions()
 }
@@ -296,9 +295,13 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 
 	// ensure we have all languages/scripts needed, downloading if necessary
 
+	runCommand("find", os.Getenv("TESSDATA_PREFIX"))
+	runCommand("ls", "-laFR", os.Getenv("TESSDATA_PREFIX"))
 	if err := checkLanguages(req.Lang); err != nil {
 		return "", err
 	}
+	runCommand("find", os.Getenv("TESSDATA_PREFIX"))
+	runCommand("ls", "-laFR", os.Getenv("TESSDATA_PREFIX"))
 
 	// run magick
 
