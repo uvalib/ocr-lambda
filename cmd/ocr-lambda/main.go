@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -128,6 +130,59 @@ func runCommand(command string, arguments ...string) (string, error) {
 	return output, err
 }
 
+func downloadFile(url, filename string) error {
+	res, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = io.Copy(f, res.Body)
+
+	return err
+}
+
+func checkLanguages(lang string) error {
+	langs := strings.Split(lang, "+")
+
+	langType := "fast"
+	langBranch := "4.0.0"
+	langUrlTemplate := "https://github.com/tesseract-ocr/tessdata_%s/raw/%s/%s%s.traineddata"
+
+	for l := range langs {
+		var err error
+
+		// check if language file exists
+		langFile := fmt.Sprintf("%s/%s.traineddata", os.Getenv("TESSDATA_PREFIX"), l)
+		if _, err = os.Stat(langFile); err == nil {
+			continue
+		}
+
+		// attempt to download as language file
+		langUrl := fmt.Sprintf(langUrlTemplate, langType, langBranch, "", l)
+		if err = downloadFile(langUrl, langFile); err == nil {
+			continue
+		}
+
+		// attempt to download as script file
+		scriptUrl := fmt.Sprintf(langUrlTemplate, langType, langBranch, "script/", l)
+		if err = downloadFile(scriptUrl, langFile); err == nil {
+			continue
+		}
+
+		// both downloads failed; give up
+		return err
+	}
+
+	return nil
+}
+
 func convertImage(localSourceImage, localConvertedImage, scale string) error {
 	cmd := "magick"
 	args := []string{"convert", "-units", "PixelsPerInch", "-type", "Grayscale", "+compress", "+repage", fmt.Sprintf("%s[0]", localSourceImage), "-filter", "Lanczos", "-resize", fmt.Sprintf("%s%%", scale), localConvertedImage}
@@ -235,7 +290,14 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 	}
 
 	// log versions of software we are using
+
 	getSoftwareVersions()
+
+	// ensure we have all languages/scripts needed, downloading if necessary
+
+	if err := checkLanguages(req.Lang); err != nil {
+		return "", err
+	}
 
 	// run magick
 
