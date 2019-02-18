@@ -167,7 +167,12 @@ func checkLanguages(lang string) error {
 	var langsAll []string
 
 	for _, l := range langs {
-		langsAll = append(langsAll, l, langsMap[l])
+		langsAll = append(langsAll, l)
+
+		langDep := langsMap[l]
+		if langDep != "" {
+			langsAll = append(langsAll, langDep)
+		}
 	}
 
 	langType := "fast"
