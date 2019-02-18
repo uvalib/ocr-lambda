@@ -350,10 +350,18 @@ func init() {
 	// set needed environment variables
 
 	home = os.Getenv("LAMBDA_TASK_ROOT")
+	tessdataLocal := "/tmp/tessdata"
 
 	os.Setenv("LD_LIBRARY_PATH", fmt.Sprintf("%s/lib:%s", home, os.Getenv("LD_LIBRARY_PATH")))
 	os.Setenv("PATH", fmt.Sprintf("%s/bin:%s", home, os.Getenv("PATH")))
-	os.Setenv("TESSDATA_PREFIX", fmt.Sprintf("%s/share/tessdata", home))
+	os.Setenv("TESSDATA_PREFIX", tessdataLocal)
+
+	// copy payload language files to writeable directory (more may be downloaded later)
+
+	tessdataLambda := fmt.Sprintf("%s/share/tessdata", home)
+
+	os.RemoveAll(tessdataLocal)
+	exec.Command("cp", "-R", "-p", tessdataLambda, tessdataLocal)
 }
 
 func main() {

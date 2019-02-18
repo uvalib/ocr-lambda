@@ -149,6 +149,8 @@ function install_leptonica_from_source ()
 
 function install_tesseract_language_files ()
 {
+	msg "[$FUNCNAME]"
+
 	TESSDATA="${INSTALLDIR}/share/tessdata"
 	mv "$LANGDIR"/* "$TESSDATA"/ || die "lang mv"
 }
