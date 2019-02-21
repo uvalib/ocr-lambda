@@ -158,9 +158,9 @@ func checkLanguages(langStr string) error {
 	// certain languages depend on other language files, make sure they are pulled in
 
 	langsMap := map[string]string{
-		"aze": "aze_cyrl",
+		"aze":      "aze_cyrl",
 		"aze_cyrl": "aze",
-		"uzb": "uzb_cyrl",
+		"uzb":      "uzb_cyrl",
 		"uzb_cyrl": "uzb",
 	}
 
