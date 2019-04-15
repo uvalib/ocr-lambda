@@ -5,7 +5,7 @@
 declare -a SRCURLS=(
 	"https://github.com/tesseract-ocr/tesseract/archive/4.0.0.tar.gz"
 	"https://github.com/DanBloomberg/leptonica/archive/1.78.0.tar.gz"
-	"https://github.com/ImageMagick/ImageMagick/archive/7.0.8-39.tar.gz"
+	"https://github.com/ImageMagick/ImageMagick/archive/7.0.8-40.tar.gz"
 	"https://github.com/uclouvain/openjpeg/archive/v2.3.1.tar.gz"
 	"https://github.com/libjpeg-turbo/libjpeg-turbo/archive/2.0.2.tar.gz"
 	"https://download.osgeo.org/libtiff/tiff-4.0.10.tar.gz"
