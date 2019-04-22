@@ -23,7 +23,7 @@ import (
 )
 
 // json for workflow <-> lambda communication
-type lambdaRequest struct {
+type workflowRequestType struct {
 	Lang      string `json:"lang,omitempty"`      // language to use for ocr
 	Scale     string `json:"scale,omitempty"`     // converted image scale factor
 	Bucket    string `json:"bucket,omitempty"`    // s3 bucket for source image
@@ -32,8 +32,68 @@ type lambdaRequest struct {
 	Pid       string `json:"pid,omitempty"`       // pid of this master_file image
 }
 
-type lambdaResponse struct {
+type workflowResponseType struct {
 	Text string `json:"text,omitempty"`
+}
+
+// json for s3 message -> lambda communication
+type s3UserIdentityType struct {
+	PrincipalId string `json:"principalId,omitempty"`
+}
+
+type s3RequestParametersType struct {
+	SourceIPAddress string `json:"sourceIPAddress,omitempty"`
+}
+
+type s3ResponseElementsType struct {
+	X_amz_request_id string `json:"x-amz-request-id,omitempty"`
+	X_amz_id_2       string `json:"x-amz-id-2,omitempty"`
+}
+
+type s3OwnerIdentityType struct {
+	PrincipalId string `json:"principalId,omitempty"`
+}
+
+type s3BucketType struct {
+	Name          string              `json:"name,omitempty"`
+	OwnerIdentity s3OwnerIdentityType `json:"ownerIdentity,omitempty"`
+	Arn           string              `json:"arn,omitempty"`
+}
+
+type s3ObjectType struct {
+	Key       string `json:"key,omitempty"`
+	Size      string `json:"size,omitempty"`
+	ETag      string `json:"eTag,omitempty"`
+	VersionId string `json:"versionId,omitempty"`
+}
+
+type s3Type struct {
+	Name   string       `json:"name,omitempty"`
+	Arn    string       `json:"arn,omitempty"`
+	Bucket s3BucketType `json:"bucket,omitempty"`
+	Object s3ObjectType `json:"object,omitempty"`
+}
+
+type s3RecordType struct {
+	EventVersion      string                  `json:"eventVersion,omitempty"`
+	EventSource       string                  `json:"eventSource,omitempty"`
+	AwsRegion         string                  `json:"awsRegion,omitempty"`
+	EventTime         string                  `json:"eventTime,omitempty"`
+	EventName         string                  `json:"eventName,omitempty"`
+	UserIdentity      s3UserIdentityType      `json:"userIdentity,omitempty"`
+	RequestParameters s3RequestParametersType `json:"requestParameters,omitempty"`
+	ResponseElements  s3ResponseElementsType  `json:"responseElements,omitempty"`
+	S3                s3Type                  `json:"s3,omitempty"`
+}
+
+type s3MessageEventType struct {
+	Records []s3RecordType `json:"Records,omitempty"`
+}
+
+// combined request type that encompasses each way this lambda may be invoked
+type lambdaRequestType struct {
+	workflowRequestType
+	s3MessageEventType
 }
 
 // json for logged command history
@@ -268,7 +328,7 @@ func saveCommandHistory(resultsBase string) {
 	}
 }
 
-func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
+func handleWorkflowOcrRequest(req lambdaRequestType) (string, error) {
 	// set file/path variables
 
 	cmds = &commandHistory{}
@@ -365,7 +425,7 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 
 	// send response
 
-	res := lambdaResponse{}
+	res := workflowResponseType{}
 
 	res.Text = string(resultsText)
 
@@ -375,6 +435,22 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 	}
 
 	return string(output), nil
+}
+
+func handleStandaloneOcrRequest(req lambdaRequestType) (string, error) {
+	return "", errors.New("Not yet implemented")
+}
+
+func handleOcrRequest(ctx context.Context, req lambdaRequestType) (string, error) {
+	if req.Pid != "" {
+		return handleWorkflowOcrRequest(req)
+	}
+
+	if len(req.Records) > 0 {
+		return handleStandaloneOcrRequest(req)
+	}
+
+	return "", errors.New("Unhandled request type")
 }
 
 func init() {
