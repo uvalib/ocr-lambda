@@ -46,8 +46,8 @@ type s3RequestParametersType struct {
 }
 
 type s3ResponseElementsType struct {
-	X_amz_request_id string `json:"x-amz-request-id,omitempty"`
-	X_amz_id_2       string `json:"x-amz-id-2,omitempty"`
+	XAmzRequestId string `json:"x-amz-request-id,omitempty"`
+	XAmzId2       string `json:"x-amz-id-2,omitempty"`
 }
 
 type s3OwnerIdentityType struct {
@@ -90,7 +90,7 @@ type s3MessageEventType struct {
 	Records []s3RecordType `json:"Records,omitempty"`
 }
 
-// combined request type that encompasses each way this lambda may be invoked
+// combined request type that encompasses various ways in which this lambda could be invoked
 type lambdaRequestType struct {
 	workflowRequestType
 	s3MessageEventType
@@ -106,6 +106,15 @@ type commandInfo struct {
 
 type commandHistory struct {
 	Commands []commandInfo `json:"commands,omitempty"`
+}
+
+// ocr config for generic conversions irrespective of request source
+type ocrConfig struct {
+	remoteResultsPrefix string
+	languages string
+	scale string
+	bucket string
+	key string
 }
 
 var sess *session.Session
@@ -328,32 +337,21 @@ func saveCommandHistory(resultsBase string) {
 	}
 }
 
-func handleWorkflowOcrRequest(req lambdaRequestType) (string, error) {
+func handleGenericOcrRequest(ocr ocrConfig) (string, error) {
 	// set file/path variables
 
 	cmds = &commandHistory{}
 
-	imageBase := path.Base(req.Key)
+	localWorkDir := "/tmp/ocr-lambda"
+
+	// files matching results* are uploaded to s3 at the end of the process
 	resultsBase := "results"
-
-	localWorkDir := "/tmp/ocr-ws"
-	localSourceImage := imageBase
-	// prefix with resultsBase if we want to store converted image on s3:
-	//localConvertedImage := fmt.Sprintf("%s.tif", resultsBase)
-	localConvertedImage := "converted.tif"
 	localResultsTxt := fmt.Sprintf("%s.txt", resultsBase)
-
-	// build s3 results path
-
-	remoteSubDir := req.Pid
-	if req.Pid != req.ParentPid {
-		remoteSubDir = path.Join(req.ParentPid, req.Pid)
-	}
-
-	remoteResultsPrefix := path.Join(resultsBase, remoteSubDir, req.Scale)
+	localSourceImage := fmt.Sprintf("source-%s", path.Base(ocr.key))
+	localConvertedImage := "source-converted.tif"
 
 	// set default language if none specified
-	langStr := req.Lang
+	langStr := ocr.languages
 	if langStr == "" {
 		langStr = "eng"
 	}
@@ -375,7 +373,7 @@ func handleWorkflowOcrRequest(req lambdaRequestType) (string, error) {
 
 	// download image from s3
 
-	_, dlErr := downloadImage(req.Bucket, req.Key, localSourceImage)
+	_, dlErr := downloadImage(ocr.bucket, ocr.key, localSourceImage)
 	if dlErr != nil {
 		return "", dlErr
 	}
@@ -396,7 +394,7 @@ func handleWorkflowOcrRequest(req lambdaRequestType) (string, error) {
 
 	// run magick
 
-	if err := convertImage(localSourceImage, localConvertedImage, req.Scale); err != nil {
+	if err := convertImage(localSourceImage, localConvertedImage, ocr.scale); err != nil {
 		return "", err
 	}
 
@@ -419,7 +417,7 @@ func handleWorkflowOcrRequest(req lambdaRequestType) (string, error) {
 
 	// upload results
 
-	if err := uploadResults(req.Bucket, remoteResultsPrefix); err != nil {
+	if err := uploadResults(ocr.bucket, ocr.remoteResultsPrefix); err != nil {
 		return "", err
 	}
 
@@ -437,8 +435,45 @@ func handleWorkflowOcrRequest(req lambdaRequestType) (string, error) {
 	return string(output), nil
 }
 
+func handleWorkflowOcrRequest(req lambdaRequestType) (string, error) {
+	ocr := &ocrConfig{}
+
+	// set values from request json
+
+	ocr.bucket = req.Bucket
+	ocr.key = req.Key
+	ocr.languages = req.Lang
+	ocr.scale = req.Scale
+
+	// build s3 results path
+
+	remoteSubDir := req.Pid
+	if req.Pid != req.ParentPid {
+		remoteSubDir = path.Join(req.ParentPid, req.Pid)
+	}
+
+	ocr.remoteResultsPrefix = path.Join("results", remoteSubDir, req.Scale)
+
+	return handleGenericOcrRequest(*ocr)
+}
+
 func handleStandaloneOcrRequest(req lambdaRequestType) (string, error) {
-	return "", errors.New("Not yet implemented")
+	ocr := &ocrConfig{}
+
+	// set values from request json
+
+	ocr.bucket = req.Records[0].S3.Bucket.Name
+	ocr.key = req.Records[0].S3.Object.Key
+	ocr.languages = ""
+	ocr.scale = "100"
+
+	// build s3 results path
+
+	strippedPath := strings.Replace(ocr.key, "standalone/requests/", "", -1)
+
+	ocr.remoteResultsPrefix = path.Join("standalone", "results", strippedPath)
+
+	return handleGenericOcrRequest(*ocr)
 }
 
 func handleOcrRequest(ctx context.Context, req lambdaRequestType) (string, error) {
