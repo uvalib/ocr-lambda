@@ -478,7 +478,7 @@ func handleStandaloneOcrRequest(req lambdaRequestType) (string, error) {
 
 	strippedPath := strings.Replace(path.Dir(ocr.key), "standalone/requests/", "", -1)
 
-	ocr.remoteResultsPrefix = path.Join("standalone", "results", strippedPath, path.Base(ocr.key))
+	ocr.remoteResultsPrefix = path.Join("standalone", "results", strippedPath)
 
 	return handleGenericOcrRequest(*ocr)
 }
