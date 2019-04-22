@@ -115,6 +115,7 @@ type ocrConfig struct {
 	scale string
 	bucket string
 	key string
+	additionalFormats []string
 }
 
 var sess *session.Session
@@ -292,9 +293,10 @@ func convertImage(localSourceImage, localConvertedImage, scale string) error {
 	return nil
 }
 
-func ocrImage(localConvertedImage, resultsBase, langStr string) error {
+func ocrImage(localConvertedImage, resultsBase, langStr string, outputFormats []string) error {
 	cmd := "tesseract"
-	args := []string{localConvertedImage, resultsBase, "--psm", "1", "-l", langStr, "txt", "hocr"}
+	args := []string{localConvertedImage, resultsBase, "--psm", "1", "-l", langStr }
+	args = append(args, outputFormats...)
 
 	if out, err := runCommand(cmd, args...); err != nil {
 		return errors.New(fmt.Sprintf("Failed to ocr converted image: [%s] (%s)", err.Error(), out))
@@ -350,6 +352,9 @@ func handleGenericOcrRequest(ocr ocrConfig) (string, error) {
 	localSourceImage := fmt.Sprintf("source-%s", path.Base(ocr.key))
 	localConvertedImage := "source-converted.tif"
 
+	outputFormats := []string{ "txt" }
+	outputFormats = append(outputFormats, ocr.additionalFormats...)
+
 	// set default language if none specified
 	langStr := ocr.languages
 	if langStr == "" {
@@ -400,7 +405,7 @@ func handleGenericOcrRequest(ocr ocrConfig) (string, error) {
 
 	// run tesseract
 
-	if err := ocrImage(localConvertedImage, resultsBase, langStr); err != nil {
+	if err := ocrImage(localConvertedImage, resultsBase, langStr, outputFormats); err != nil {
 		return "", err
 	}
 
@@ -444,6 +449,7 @@ func handleWorkflowOcrRequest(req lambdaRequestType) (string, error) {
 	ocr.key = req.Key
 	ocr.languages = req.Lang
 	ocr.scale = req.Scale
+	ocr.additionalFormats = []string{ "hocr" }
 
 	// build s3 results path
 
@@ -466,12 +472,13 @@ func handleStandaloneOcrRequest(req lambdaRequestType) (string, error) {
 	ocr.key = req.Records[0].S3.Object.Key
 	ocr.languages = ""
 	ocr.scale = "100"
+	ocr.additionalFormats = []string{ "hocr", "pdf" }
 
 	// build s3 results path
 
-	strippedPath := strings.Replace(ocr.key, "standalone/requests/", "", -1)
+	strippedPath := strings.Replace(path.Dir(ocr.key), "standalone/requests/", "", -1)
 
-	ocr.remoteResultsPrefix = path.Join("standalone", "results", strippedPath)
+	ocr.remoteResultsPrefix = path.Join("standalone", "results", strippedPath, path.Base(ocr.key))
 
 	return handleGenericOcrRequest(*ocr)
 }
