@@ -490,7 +490,7 @@ func handleStandaloneOcrRequest(req lambdaRequestType) (string, error) {
 
 	// build s3 results path
 
-	strippedPath := strings.Replace(path.Dir(ocr.key), "standalone/requests/", "", -1)
+	strippedPath := strings.Replace(ocr.key, "standalone/requests/", "", -1)
 
 	ocr.remoteResultsPrefix = path.Join("standalone", "results", strippedPath)
 
