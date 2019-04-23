@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -123,6 +124,8 @@ var cmds *commandHistory
 var home string
 
 func downloadImage(bucket, key, localFile string) (int64, error) {
+	log.Printf("downloading image: s3://%s/%s => %s", bucket, key, localFile)
+
 	downloader := s3manager.NewDownloader(sess)
 
 	f, fileErr := os.Create(localFile)
@@ -147,6 +150,8 @@ func downloadImage(bucket, key, localFile string) (int64, error) {
 func uploadResult(uploader *s3manager.Uploader, bucket, remoteResultsPrefix, resultFile string) error {
 	s3File := path.Join(remoteResultsPrefix, resultFile)
 
+	log.Printf("uploading file: %s => s3://%s/%s", resultFile, bucket, s3File)
+
 	f, err := os.Open(resultFile)
 	if err != nil {
 		return errors.New(fmt.Sprintf("Failed to open results file: [%s]", err.Error()))
@@ -163,6 +168,8 @@ func uploadResult(uploader *s3manager.Uploader, bucket, remoteResultsPrefix, res
 }
 
 func uploadResults(bucket, remoteResultsPrefix string) error {
+	log.Print("uploading results")
+
 	uploader := s3manager.NewUploader(sess)
 
 	matches, globErr := filepath.Glob("results.*")
@@ -195,12 +202,18 @@ func runCommand(command string, arguments ...string) (string, error) {
 
 	output := string(out)
 
-	cmds.Commands = append(cmds.Commands, commandInfo{Command: command, Arguments: arguments, Output: output, Duration: fmt.Sprintf("%0.3f", duration)})
+	cmd := commandInfo{Command: command, Arguments: arguments, Output: output, Duration: fmt.Sprintf("%0.3f", duration)}
+
+	cmds.Commands = append(cmds.Commands, cmd)
+
+	log.Printf("command: [%s]  arguments: [%s]  duration: [%s]", cmd.Command, strings.Join(cmd.Arguments, " "), cmd.Duration)
 
 	return output, err
 }
 
 func downloadFile(url, filename string) error {
+	log.Printf("downloading file: [%s]", url)
+
 	res, err := http.Get(url)
 	if err != nil {
 		return err
@@ -283,6 +296,8 @@ func checkLanguages(langStr string) error {
 }
 
 func convertImage(localSourceImage, localConvertedImage, scale string) error {
+	log.Print("converting image...")
+
 	cmd := "magick"
 	args := []string{"convert", "-units", "PixelsPerInch", "-type", "Grayscale", "+compress", "+repage", fmt.Sprintf("%s[0]", localSourceImage), "-filter", "Lanczos", "-resize", fmt.Sprintf("%s%%", scale), localConvertedImage}
 
@@ -294,6 +309,8 @@ func convertImage(localSourceImage, localConvertedImage, scale string) error {
 }
 
 func ocrImage(localConvertedImage, resultsBase, langStr string, outputFormats []string) error {
+	log.Print("ocring image...")
+
 	cmd := "tesseract"
 	args := []string{localConvertedImage, resultsBase, "--psm", "1", "-l", langStr }
 	args = append(args, outputFormats...)
@@ -368,6 +385,9 @@ func handleGenericOcrRequest(ocr ocrConfig) (string, error) {
 	}
 
 	defer func() {
+		// upload whatever results/logs we have, and clean up
+		saveCommandHistory(resultsBase)
+		uploadResults(ocr.bucket, ocr.remoteResultsPrefix)
 		os.Chdir("/")
 		os.RemoveAll(localWorkDir)
 	}()
@@ -416,16 +436,6 @@ func handleGenericOcrRequest(ocr ocrConfig) (string, error) {
 		return "", errors.New(fmt.Sprintf("Failed to read ocr results file: [%s]", readErr.Error()))
 	}
 
-	// save command history to a json-formatted log file
-
-	saveCommandHistory(resultsBase)
-
-	// upload results
-
-	if err := uploadResults(ocr.bucket, ocr.remoteResultsPrefix); err != nil {
-		return "", err
-	}
-
 	// send response
 
 	res := workflowResponseType{}
@@ -441,6 +451,8 @@ func handleGenericOcrRequest(ocr ocrConfig) (string, error) {
 }
 
 func handleWorkflowOcrRequest(req lambdaRequestType) (string, error) {
+	log.Print("handling workflow ocr request")
+
 	ocr := &ocrConfig{}
 
 	// set values from request json
@@ -464,6 +476,8 @@ func handleWorkflowOcrRequest(req lambdaRequestType) (string, error) {
 }
 
 func handleStandaloneOcrRequest(req lambdaRequestType) (string, error) {
+	log.Print("handling standalone ocr request")
+
 	ocr := &ocrConfig{}
 
 	// set values from request json
@@ -479,6 +493,8 @@ func handleStandaloneOcrRequest(req lambdaRequestType) (string, error) {
 	strippedPath := strings.Replace(path.Dir(ocr.key), "standalone/requests/", "", -1)
 
 	ocr.remoteResultsPrefix = path.Join("standalone", "results", strippedPath)
+
+	log.Printf("key: [%s] => [%s] => [%s] => [%s]", ocr.key, path.Dir(ocr.key), strippedPath, ocr.remoteResultsPrefix)
 
 	return handleGenericOcrRequest(*ocr)
 }
