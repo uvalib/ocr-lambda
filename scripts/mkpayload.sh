@@ -3,12 +3,12 @@
 # urls for downloadable tools/dependencies
 
 declare -a SRCURLS=(
-	"https://github.com/tesseract-ocr/tesseract/archive/4.0.0.tar.gz"
-	"https://github.com/DanBloomberg/leptonica/archive/1.78.0.tar.gz"
-	"https://github.com/ImageMagick/ImageMagick/archive/7.0.8-43.tar.gz"
-	"https://github.com/uclouvain/openjpeg/archive/v2.3.1.tar.gz"
-	"https://github.com/libjpeg-turbo/libjpeg-turbo/archive/2.0.2.tar.gz"
-	"https://download.osgeo.org/libtiff/tiff-4.0.10.tar.gz"
+	"https://github.com/tesseract-ocr/tesseract/archive/4.1.1.tar.gz"
+	"https://github.com/DanBloomberg/leptonica/archive/1.80.0.tar.gz"
+	"https://github.com/ImageMagick/ImageMagick/archive/7.0.11-2.tar.gz"
+	"https://github.com/uclouvain/openjpeg/archive/v2.4.0.tar.gz"
+	"https://github.com/libjpeg-turbo/libjpeg-turbo/archive/2.0.6.tar.gz"
+	"https://download.osgeo.org/libtiff/tiff-4.2.0.tar.gz"
 	"https://download.sourceforge.net/libpng/libpng-1.6.37.tar.gz"
 )
 
@@ -20,7 +20,7 @@ LANGS="${LANGSREQ} ${LANGSOPT}"
 # fast or best:
 LANGTYPE="fast"
 # master or specific branch:
-LANGBRANCH="4.0.0"
+LANGBRANCH="4.1.0"
 LANGTEMPLATE="https://github.com/tesseract-ocr/tessdata_${LANGTYPE}/raw/${LANGBRANCH}/%s.traineddata"
 declare -a LANGURLS=($(for lang in $LANGS; do printf "${LANGTEMPLATE}\n" "$lang"; done))
 
