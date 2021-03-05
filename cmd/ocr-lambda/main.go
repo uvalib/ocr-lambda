@@ -39,7 +39,7 @@ type workflowResponseType struct {
 
 // json for s3 message -> lambda communication
 type s3UserIdentityType struct {
-	PrincipalId string `json:"principalId,omitempty"`
+	PrincipalID string `json:"principalId,omitempty"`
 }
 
 type s3RequestParametersType struct {
@@ -47,12 +47,12 @@ type s3RequestParametersType struct {
 }
 
 type s3ResponseElementsType struct {
-	XAmzRequestId string `json:"x-amz-request-id,omitempty"`
-	XAmzId2       string `json:"x-amz-id-2,omitempty"`
+	XAmzRequestID string `json:"x-amz-request-id,omitempty"`
+	XAmzID2       string `json:"x-amz-id-2,omitempty"`
 }
 
 type s3OwnerIdentityType struct {
-	PrincipalId string `json:"principalId,omitempty"`
+	PrincipalID string `json:"principalId,omitempty"`
 }
 
 type s3BucketType struct {
@@ -63,9 +63,9 @@ type s3BucketType struct {
 
 type s3ObjectType struct {
 	Key       string `json:"key,omitempty"`
-	Size      int `json:"size,omitempty"`
+	Size      int    `json:"size,omitempty"`
 	ETag      string `json:"eTag,omitempty"`
-	VersionId string `json:"versionId,omitempty"`
+	VersionID string `json:"versionId,omitempty"`
 }
 
 type s3Type struct {
@@ -112,11 +112,11 @@ type commandHistory struct {
 // ocr config for generic conversions irrespective of request source
 type ocrConfig struct {
 	remoteResultsPrefix string
-	languages string
-	scale string
-	bucket string
-	key string
-	additionalFormats []string
+	languages           string
+	scale               string
+	bucket              string
+	key                 string
+	additionalFormats   []string
 }
 
 var sess *session.Session
@@ -130,7 +130,7 @@ func downloadImage(bucket, key, localFile string) (int64, error) {
 
 	f, fileErr := os.Create(localFile)
 	if fileErr != nil {
-		return -1, errors.New(fmt.Sprintf("Failed to create local file: [%s]", fileErr.Error()))
+		return -1, fmt.Errorf("failed to create local file: [%s]", fileErr.Error())
 	}
 	defer f.Close()
 
@@ -141,7 +141,7 @@ func downloadImage(bucket, key, localFile string) (int64, error) {
 		})
 
 	if dlErr != nil {
-		return -1, errors.New(fmt.Sprintf("Failed to download s3 file: [%s]", dlErr.Error()))
+		return -1, fmt.Errorf("failed to download s3 file: [%s]", dlErr.Error())
 	}
 
 	return bytes, nil
@@ -154,7 +154,7 @@ func uploadResult(uploader *s3manager.Uploader, bucket, remoteResultsPrefix, res
 
 	f, err := os.Open(resultFile)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Failed to open results file: [%s]", err.Error()))
+		return fmt.Errorf("failed to open results file: [%s]", err.Error())
 	}
 	defer f.Close()
 
@@ -175,22 +175,16 @@ func uploadResults(bucket, remoteResultsPrefix string) error {
 	matches, globErr := filepath.Glob("results.*")
 
 	if globErr != nil {
-		return errors.New(fmt.Sprintf("Failed to find results file(s): [%s]", globErr.Error()))
+		return fmt.Errorf("failed to find results file(s): [%s]", globErr.Error())
 	}
 
 	for _, resultFile := range matches {
 		if err := uploadResult(uploader, bucket, remoteResultsPrefix, resultFile); err != nil {
-			return errors.New(fmt.Sprintf("Failed to upload result: [%s]", err.Error()))
+			return fmt.Errorf("failed to upload result: [%s]", err.Error())
 		}
 	}
 
 	return nil
-}
-
-func stripExtension(fileName string) string {
-	strippedFileName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-
-	return strippedFileName
 }
 
 func runCommand(command string, arguments ...string) (string, error) {
@@ -221,7 +215,7 @@ func downloadFile(url, filename string) error {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return errors.New(fmt.Sprintf("Failed to download language file: [%s] (%s)", url, res.Status))
+		return fmt.Errorf("failed to download language file: [%s] (%s)", url, res.Status)
 	}
 
 	f, err := os.Create(filename)
@@ -265,7 +259,7 @@ func checkLanguages(langStr string) error {
 
 	langType := "fast"
 	langBranch := "4.0.0"
-	langUrlTemplate := "https://github.com/tesseract-ocr/tessdata_%s/raw/%s/%s%s.traineddata"
+	langURLTemplate := "https://github.com/tesseract-ocr/tessdata_%s/raw/%s/%s%s.traineddata"
 
 	for _, l := range langsAll {
 		var err error
@@ -277,14 +271,14 @@ func checkLanguages(langStr string) error {
 		}
 
 		// attempt to download as language file
-		langUrl := fmt.Sprintf(langUrlTemplate, langType, langBranch, "", l)
-		if err = downloadFile(langUrl, langFile); err == nil {
+		langURL := fmt.Sprintf(langURLTemplate, langType, langBranch, "", l)
+		if err = downloadFile(langURL, langFile); err == nil {
 			continue
 		}
 
 		// attempt to download as script file
-		scriptUrl := fmt.Sprintf(langUrlTemplate, langType, langBranch, "script/", l)
-		if err = downloadFile(scriptUrl, langFile); err == nil {
+		scriptURL := fmt.Sprintf(langURLTemplate, langType, langBranch, "script/", l)
+		if err = downloadFile(scriptURL, langFile); err == nil {
 			continue
 		}
 
@@ -302,7 +296,7 @@ func convertImage(localSourceImage, localConvertedImage, scale string) error {
 	args := []string{"convert", "-units", "PixelsPerInch", "-type", "Grayscale", "+compress", "+repage", fmt.Sprintf("%s[0]", localSourceImage), "-filter", "Lanczos", "-resize", fmt.Sprintf("%s%%", scale), localConvertedImage}
 
 	if out, err := runCommand(cmd, args...); err != nil {
-		return errors.New(fmt.Sprintf("Failed to convert source image: [%s] (%s)", err.Error(), out))
+		return fmt.Errorf("failed to convert source image: [%s] (%s)", err.Error(), out)
 	}
 
 	return nil
@@ -312,11 +306,11 @@ func ocrImage(localConvertedImage, resultsBase, langStr string, outputFormats []
 	log.Print("ocring image...")
 
 	cmd := "tesseract"
-	args := []string{localConvertedImage, resultsBase, "--psm", "1", "-l", langStr }
+	args := []string{localConvertedImage, resultsBase, "--psm", "1", "-l", langStr}
 	args = append(args, outputFormats...)
 
 	if out, err := runCommand(cmd, args...); err != nil {
-		return errors.New(fmt.Sprintf("Failed to ocr converted image: [%s] (%s)", err.Error(), out))
+		return fmt.Errorf("failed to ocr converted image: [%s] (%s)", err.Error(), out)
 	}
 
 	return nil
@@ -369,7 +363,7 @@ func handleGenericOcrRequest(ocr ocrConfig) (string, error) {
 	localSourceImage := fmt.Sprintf("source-%s", path.Base(ocr.key))
 	localConvertedImage := "source-converted.tif"
 
-	outputFormats := []string{ "txt" }
+	outputFormats := []string{"txt"}
 	outputFormats = append(outputFormats, ocr.additionalFormats...)
 
 	// set default language if none specified
@@ -381,7 +375,7 @@ func handleGenericOcrRequest(ocr ocrConfig) (string, error) {
 	// create and change to temporary working directory
 
 	if err := os.MkdirAll(localWorkDir, 0755); err != nil {
-		return "", errors.New(fmt.Sprintf("Failed to create work dir: [%s]", err.Error()))
+		return "", fmt.Errorf("failed to create work dir: [%s]", err.Error())
 	}
 
 	defer func() {
@@ -393,7 +387,7 @@ func handleGenericOcrRequest(ocr ocrConfig) (string, error) {
 	}()
 
 	if err := os.Chdir(localWorkDir); err != nil {
-		return "", errors.New(fmt.Sprintf("Failed to change to work dir: [%s]", err.Error()))
+		return "", fmt.Errorf("failed to change to work dir: [%s]", err.Error())
 	}
 
 	// download image from s3
@@ -433,7 +427,7 @@ func handleGenericOcrRequest(ocr ocrConfig) (string, error) {
 
 	resultsText, readErr := ioutil.ReadFile(localResultsTxt)
 	if readErr != nil {
-		return "", errors.New(fmt.Sprintf("Failed to read ocr results file: [%s]", readErr.Error()))
+		return "", fmt.Errorf("failed to read ocr results file: [%s]", readErr.Error())
 	}
 
 	// send response
@@ -444,7 +438,7 @@ func handleGenericOcrRequest(ocr ocrConfig) (string, error) {
 
 	output, jsonErr := json.Marshal(res)
 	if jsonErr != nil {
-		return "", errors.New(fmt.Sprintf("Failed to serialize output: [%s]", jsonErr.Error()))
+		return "", fmt.Errorf("failed to serialize output: [%s]", jsonErr.Error())
 	}
 
 	return string(output), nil
@@ -461,7 +455,7 @@ func handleWorkflowOcrRequest(req lambdaRequestType) (string, error) {
 	ocr.key = req.Key
 	ocr.languages = req.Lang
 	ocr.scale = req.Scale
-	ocr.additionalFormats = []string{ "hocr" }
+	ocr.additionalFormats = []string{"hocr"}
 
 	// build s3 results path
 
@@ -486,7 +480,7 @@ func handleStandaloneOcrRequest(req lambdaRequestType) (string, error) {
 	ocr.key = req.Records[0].S3.Object.Key
 	ocr.languages = ""
 	ocr.scale = "100"
-	ocr.additionalFormats = []string{ "hocr", "pdf" }
+	ocr.additionalFormats = []string{"hocr", "pdf"}
 
 	// build s3 results path
 
@@ -508,7 +502,7 @@ func handleOcrRequest(ctx context.Context, req lambdaRequestType) (string, error
 		return handleStandaloneOcrRequest(req)
 	}
 
-	return "", errors.New("Unhandled request type")
+	return "", errors.New("unhandled request type")
 }
 
 func init() {

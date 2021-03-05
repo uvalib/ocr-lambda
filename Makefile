@@ -1,9 +1,9 @@
 # project specific definitions
-SRCDIR = cmd
+#SRCDIR = cmd
 BINDIR = bin
+PACKAGE = ocr-lambda
+SRCDIR = cmd/$(PACKAGE)
 PAYDIR = payload
-PKGLAMBDA = ocr-lambda
-PACKAGES = $(PKGLAMBDA)
 
 # go commands
 GOCMD = go
@@ -15,22 +15,39 @@ GOFMT = $(GOCMD) fmt
 GOGET = $(GOCMD) get
 GOMOD = $(GOCMD) mod
 GOVER = $(GOCMD) version
+GOLNT = golint
+GOBIN = $(HOME)/go/bin
 
 # default build target is host machine architecture
 MACHINE = $(shell uname -s | tr '[A-Z]' '[a-z]')
 TARGET = $(MACHINE)
 
+# git commit used for this build, either passed to make via Dockerfile or determined from local directory
+ifeq ($(GIT_COMMIT),)
+	GIT_COMMIT = $(shell \
+		commit="$$(git rev-list -1 HEAD 2>/dev/null)" ; \
+		if [ "$${commit}" != "" ] ; then \
+			postfix="" ; \
+			git diff --quiet || postfix="-modified" ; \
+			echo "$${commit}$${postfix}" ; \
+		fi \
+	)
+endif
+
 # darwin-specific definitions
 GOENV_darwin = 
 GOFLAGS_darwin = 
+GOLINK_darwin = 
 
 # linux-specific definitions
 GOENV_linux = 
 GOFLAGS_linux = 
+GOLINK_linux = 
 
 # extra flags
 GOENV_EXTRA = GOARCH=amd64
-GOFLAGS_EXTRA = 
+GOFLAGS_EXTRA =
+GOLINK_EXTRA = -X main.gitCommit=$(GIT_COMMIT)
 
 # default target:
 
@@ -39,25 +56,22 @@ build: go-vars compile symlink
 go-vars:
 	$(eval GOENV = GOOS=$(TARGET) $(GOENV_$(TARGET)) $(GOENV_EXTRA))
 	$(eval GOFLAGS = $(GOFLAGS_$(TARGET)) $(GOFLAGS_EXTRA))
+	$(eval GOLINK = -ldflags '$(GOLINK_$(TARGET)) $(GOLINK_EXTRA)')
 
 compile:
 	@ \
-	echo "building packages: [$(PACKAGES)] for target: [$(TARGET)]" ; \
+	echo "building [$(PACKAGE)] for target: [$(TARGET)]" ; \
 	echo ; \
 	$(GOVER) ; \
 	echo ; \
-	for pkg in $(PACKAGES) ; do \
-		printf "compile: %-6s  env: [%s]  flags: [%s]\n" "$${pkg}" "$(GOENV)" "$(GOFLAGS)" ; \
-		$(GOENV) $(GOBLD) $(GOFLAGS) -o "$(BINDIR)/$${pkg}.$(TARGET)" "$(SRCDIR)/$${pkg}"/*.go || exit 1 ; \
-	done
+	printf "compile: %-6s  env: [%s]  flags: [%s]  link: [%s]\n" "$(PACKAGE)" "$(GOENV)" "$(GOFLAGS)" "$(GOLINK)" ; \
+	$(GOENV) $(GOBLD) $(GOFLAGS) $(GOLINK) -o "$(BINDIR)/$(PACKAGE).$(TARGET)" "$(SRCDIR)"/*.go || exit 1
 
 symlink:
 	@ \
 	echo ; \
-	for pkg in $(PACKAGES) ; do \
-		echo "symlink: $(BINDIR)/$${pkg} -> $${pkg}.$(TARGET)" ; \
-		ln -sf "$${pkg}.$(TARGET)" "$(BINDIR)/$${pkg}" || exit 1 ; \
-	done
+	echo "symlink: $(BINDIR)/$(PACKAGE) -> $(PACKAGE).$(TARGET)" ; \
+	ln -sf "$(PACKAGE).$(TARGET)" "$(BINDIR)/$(PACKAGE)" || exit 1
 
 darwin: target-darwin build
 
@@ -80,7 +94,6 @@ rebuild-linux: target-linux rebuild
 
 # lambda: make sure binary is linux
 lambda-vars:
-	$(eval PACKAGES = $(PKGLAMBDA))
 
 build-function: lambda-vars linux
 
@@ -99,28 +112,52 @@ build-payload:
 # maintenance rules
 fmt:
 	@ \
-	for pkg in $(PACKAGES) ; do \
-		echo "fmt: $${pkg}" ; \
-		(cd "$(SRCDIR)/$${pkg}" && $(GOFMT)) ; \
-	done
+	echo "[FMT] $(PACKAGE)" ; \
+	(cd "$(SRCDIR)" && $(GOFMT))
 
 vet:
 	@ \
-	for pkg in $(PACKAGES) ; do \
-		echo "vet: $${pkg}" ; \
-		(cd "$(SRCDIR)/$${pkg}" && $(GOVET)) ; \
-	done
+	echo "[VET] $(PACKAGE)" ; \
+	(cd "$(SRCDIR)" && $(GOVET))
+
+lint:
+	@ \
+	echo "[LINT] $(PACKAGE)" ; \
+	(cd "$(SRCDIR)" && $(GOLNT))
 
 clean:
 	@ \
-	echo "purge: $(BINDIR)/ $(PAYDIR)/" ; \
-	rm -rf $(BINDIR) $(PAYDIR) ; \
-	for pkg in $(PACKAGES) ; do \
-		echo "clean: $${pkg}" ; \
-		(cd "$(SRCDIR)/$${pkg}" && $(GOCLN)) ; \
-	done
+	echo "[PURGE] $(BINDIR)/" ; \
+	rm -rf $(BINDIR) ; \
+	echo "[CLEAN] $(PACKAGE)" ; \
+	(cd "$(SRCDIR)" && $(GOCLN))
 
 dep:
-	$(GOGET) -u
-	$(GOMOD) tidy
+	@ \
+	echo "[DEP] GOPROXY=$(GOPROXY) $(GOGET)" ; \
+	GOPROXY=$(GOPROXY) $(GOGET) -u ./$(SRCDIR)/... ; \
+	echo "[DEP] $(GOMOD) tidy" ; \
+	$(GOMOD) tidy ; \
+	echo "[DEP] $(GOMOD) verify" ; \
 	$(GOMOD) verify
+
+DEP: goproxy-direct dep
+
+goproxy-direct:
+	$(eval GOPROXY = direct)
+
+check-static:
+	@ \
+	echo "[CHECK] static checks" ; \
+	go install honnef.co/go/tools/cmd/staticcheck ; \
+	$(GOBIN)/staticcheck -checks all,-S1002,-ST1003 -fail all,-U1000 ./$(SRCDIR)/...
+
+check-shadow:
+	@ \
+	echo "[CHECK] shadowed variables" ; \
+	go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow ; \
+	go vet -vettool=$(GOBIN)/shadow ./$(SRCDIR)/...
+
+check: check-shadow check-static
+
+sure: check dep fmt vet lint
